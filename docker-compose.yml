@@ -1,0 +1,201 @@
+version: "3.0"
+
+services:
+
+  api:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-api"
+      SERVICES: api
+      PORT: 4000
+    links:
+      - redis
+      - zookeeper
+      - kafka
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+    labels:
+      - "traefik.enable=true"
+      - "traefik.backend=api"
+      - "traefik.port=4000"
+      - "traefik.frontend.entryPoints=http"
+      - "traefik.frontend.rule=PathPrefix:/"
+
+  auth:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-auth"
+      SERVICES: auth
+    links:
+      - redis
+      - zookeeper
+      - kafka
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+
+  users:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-users"
+      SERVICES: users
+    links:
+      - redis
+      - zookeeper
+      - kafka
+      - mongodb
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+      - mongodb
+
+  greeter:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-greeter"
+      SERVICES: greeter
+    links:
+      - redis
+      - zookeeper
+      - kafka
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+
+  slack:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-slack"
+      SERVICES: slack
+    links:
+      - redis
+      - zookeeper
+      - kafka
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+
+  emailer:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-emailer"
+      SERVICES: emailer
+    links:
+      - redis
+      - zookeeper
+      - kafka
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+
+  redis:
+    image: redis:alpine
+    hostname: redis
+
+  mongodb:
+    image: mongo
+    hostname: mongo
+    ports:
+      - 27017:27017
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:4.1.0
+    hostname: zookeeper
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: "2181"
+      ZOOKEEPER_TICK_TIME: "2000"
+    # volumes:
+      # - zookeeper-data:/var/lib/zookeeper/data
+      # - zookeeper-txn-logs:/var/lib/zookeeper/log
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:4.1.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    # volumes:
+      # - kafka-data:/var/lib/kafka/data
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_BROKER_ID: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_JMX_PORT: 9999
+
+  # Jaeger container used for tracing metrics.
+  # https://www.jaegertracing.io/
+  # Access the dashboard at http://localhost:16686
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    hostname: jaeger
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "9411:9411"
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+
+  traefik:
+    image: traefik
+    command: --web --docker --docker.domain=docker.localhost --logLevel=INFO --docker.exposedbydefault=false
+    ports:
+      - "3000:80"
+      - "3001:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /dev/null:/traefik.toml
+
+  whoami:
+    image: emilevauge/whoami # A container that exposes an API to show its IP address
+    labels:
+      - "traefik.enable=true"
+      - "traefik.frontend.rule=Host:whoami.docker.localhost"
+
+# Not mounting these persistent host volumes as this data only needs to be ephemeral for dev purposes
+# volumes:
+#   zookeeper-txn-logs:
+#     external: true
+#   zookeeper-data:
+#     external: true
+#   kafka-data:
+#     external: true
