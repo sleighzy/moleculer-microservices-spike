@@ -1,6 +1,5 @@
 const { Service } = require('moleculer');
 const { MoleculerError } = require('moleculer').Errors;
-const JaegerService = require('moleculer-jaeger');
 const Kafka = require('kafka-node');
 const Slack = require('slack-node');
 
@@ -15,19 +14,12 @@ class SlackService extends Service {
         scalable: true,
       },
 
-      mixins: [JaegerService],
-
       settings: {
-        host: process.env.JAEGER_HOST || '127.0.0.1',
         webhookUri: process.env.SLACK_WEBHOOK_URI,
         channel: process.env.SLACK_CHANNEL || '#general',
         username: process.env.SLACK_USERNAME || 'slack_service',
         bootstrapServer: process.env.SLACK_BOOTSTRAP_SERVER || 'localhost:9092',
         kafkaTopic: process.env.SLACK_KAFKA_TOPIC || 'slack-notifications',
-      },
-
-      metrics: {
-        params: true,
       },
 
       actions: {

@@ -2,7 +2,6 @@ const { Service } = require('moleculer');
 const { MoleculerClientError } = require('moleculer').Errors;
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const JaegerService = require('moleculer-jaeger');
 
 class AuthService extends Service {
   constructor(broker) {
@@ -14,15 +13,8 @@ class AuthService extends Service {
         scalable: true,
       },
 
-      mixins: [JaegerService],
-
       settings: {
-        host: process.env.JAEGER_HOST || '127.0.0.1',
         jwtSecret: process.env.JWT_SECRET || 'jwt-secret-string',
-      },
-
-      metrics: {
-        params: true,
       },
 
       actions: {

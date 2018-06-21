@@ -1,5 +1,4 @@
 const { Service } = require('moleculer');
-const JaegerService = require('moleculer-jaeger');
 const nodemailer = require('nodemailer');
 
 class EmailerService extends Service {
@@ -12,20 +11,13 @@ class EmailerService extends Service {
         scalable: true,
       },
 
-      mixins: [JaegerService],
-
       settings: {
-        host: process.env.JAEGER_HOST || '127.0.0.1',
         smtp: {
           host: process.env.SMTP_HOST || 'smtp.ethereal.email',
           port: process.env.SMTP_PORT || 587,
           user: process.env.SMTP_USER,
           pass: process.env.SMTP_PASS,
         },
-      },
-
-      metrics: {
-        params: true,
       },
 
       actions: {

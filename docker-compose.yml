@@ -43,6 +43,23 @@ services:
       - zookeeper
       - kafka
 
+  metrics:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-metrics"
+      SERVICES: metrics
+    links:
+      - redis
+      - zookeeper
+      - kafka
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+
   users:
     build:
       context: .

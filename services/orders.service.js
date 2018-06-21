@@ -3,7 +3,6 @@ const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
 const { HighLevelProducer, KeyedMessage, KafkaClient } = require('kafka-node');
-const JaegerService = require('moleculer-jaeger');
 
 class OrdersService extends Service {
   constructor(broker) {
@@ -15,7 +14,7 @@ class OrdersService extends Service {
         scalable: true,
       },
 
-      mixins: [DbService, JaegerService],
+      mixins: [DbService],
 
       adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
@@ -30,13 +29,8 @@ class OrdersService extends Service {
       })),
 
       settings: {
-        host: process.env.JAEGER_HOST || '127.0.0.1',
         bootstrapServer: process.env.ORDERS_BOOTSTRAP_SERVER || 'localhost:9092',
         ordersTopic: process.env.ORDERS_TOPIC || 'orders',
-      },
-
-      metrics: {
-        params: true,
       },
 
       actions: {

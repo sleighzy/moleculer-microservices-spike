@@ -4,7 +4,6 @@ const { HighLevelProducer, KeyedMessage, KafkaClient } = require('kafka-node');
 const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
-const JaegerService = require('moleculer-jaeger');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -18,7 +17,7 @@ class UsersService extends Service {
         scalable: true,
       },
 
-      mixins: [DbService, JaegerService],
+      mixins: [DbService],
 
       adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'username', 'email'],
@@ -31,7 +30,6 @@ class UsersService extends Service {
       })),
 
       settings: {
-        host: process.env.JAEGER_HOST || '127.0.0.1',
         jwtSecret: process.env.JWT_SECRET || 'jwt-secret-string',
         bootstrapServer: process.env.USERS_BOOTSTRAP_SERVER || 'localhost:9092',
         usersTopic: process.env.USERS_TOPIC || 'users',

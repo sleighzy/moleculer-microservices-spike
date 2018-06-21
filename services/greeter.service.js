@@ -1,5 +1,4 @@
 const { Service } = require('moleculer');
-const JaegerService = require('moleculer-jaeger');
 
 class GreeterService extends Service {
   constructor(broker) {
@@ -12,10 +11,7 @@ class GreeterService extends Service {
         scalable: true,
       },
 
-      mixins: [JaegerService],
-
       settings: {
-        host: process.env.JAEGER_HOST || '127.0.0.1',
         upperCase: true,
       },
 
