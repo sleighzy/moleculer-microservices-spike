@@ -85,8 +85,8 @@ class UsersService extends Service {
         'user.created': this.userCreated,
       },
 
-      // These entityX functions are called by the Mongoose db adapter when
-      // documents are created, updated, or deleted.
+      // These entityX functions are called by the moleculer-db
+      // mixin when entities are created, updated, or deleted.
       entityCreated: this.userCreated,
       entityUpdated: this.userUpdated,
       entityRemoved: this.userRemoved,
@@ -99,14 +99,13 @@ class UsersService extends Service {
 
   // Action handlers
   async getUsers() {
-    this.logger.info('getUsers');
-    this.clearCache();
+    this.logger.debug('getUsers');
     return this.adapter.find();
   }
 
   async getUser(ctx) {
     const username = ctx.params.id;
-    this.logger.info('getUser:', username);
+    this.logger.debug('getUser:', username);
     return this.adapter.findOne({ username });
   }
 
@@ -143,9 +142,9 @@ class UsersService extends Service {
 
     const update = {
       email,
-      updated: Date.now,
+      updated: Date.now(),
     };
-    return this.adapter.updateMany({ username }, { update })
+    return this.adapter.updateMany({ username }, update)
       .then(json => this.entityChanged('updated', json, ctx).then(() => json));
   }
 
@@ -185,23 +184,16 @@ class UsersService extends Service {
     return this.sendEvent(user, 'userRemoved');
   }
 
-  // const payloads = [{
-  //   topic: config.topic,
-  //   messages: ['test 1', 'test 2'],
-  //   attributes: 1, // Use GZip compression for the payload.
-  //   timestamp: Date.now()
-  // }];
   sendEvent(user, eventType) {
     const data = user;
     data.eventType = eventType;
     const payload = this.createPayload(data);
     return new this.Promise((resolve, reject) => {
       this.producer.send(payload, (error, result) => {
-        this.logger.debug('Sent payload to Kafka:', payload);
+        this.logger.debug('Sent payload to Kafka:', JSON.stringify(payload));
         if (error) {
           reject(error);
         } else {
-          // const formattedResult = result[0]
           this.logger.debug('Result:', result);
           resolve(result);
         }
@@ -214,7 +206,7 @@ class UsersService extends Service {
     return [{
       topic: this.settings.usersTopic,
       messages: [message],
-      attributes: 1,
+      attributes: 1, // Use GZip compression for the payload.
       timestamp: Date.now(),
     }];
   }
@@ -230,8 +222,6 @@ class UsersService extends Service {
     });
 
     // For this demo we just log client errors to the console.
-    client.on('error', error => this.logger.error(error));
-
     client.on('error', error => this.logger.error(error));
 
     this.producer = new HighLevelProducer(client, {

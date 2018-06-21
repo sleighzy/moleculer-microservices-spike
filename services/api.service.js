@@ -29,9 +29,7 @@ class ApiService extends Service {
 
             'REST users': 'users',
 
-            'GET orders/:id': 'orders.getOrder',
-            'GET orders/:id/validated': 'orders.getOrderValidation',
-            'POST orders': 'orders.submitOrder',
+            'REST orders': 'orders',
           },
         }],
 

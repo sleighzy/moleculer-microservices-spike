@@ -1,5 +1,4 @@
 const { Service } = require('moleculer');
-// const { MoleculerError } = require('moleculer').Errors;
 const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
@@ -19,13 +18,15 @@ class OrdersService extends Service {
       mixins: [DbService, JaegerService],
 
       adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created'],
+      fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
       model: mongoose.model('Order', mongoose.Schema({
         customerId: { type: Number },
         product: { type: String },
         quantity: { type: Number },
         price: { type: Number },
+        state: { type: String, enum: ['Pending', 'Approved', 'Rejected', 'Completed', 'Cancelled'] },
         created: { type: Date, default: Date.now },
+        updated: { type: Date, default: Date.now },
       })),
 
       settings: {
@@ -39,14 +40,15 @@ class OrdersService extends Service {
       },
 
       actions: {
-        submitOrder: {
+        list: {
+          handler: this.getOrders,
+        },
+        create: {
           params: {
             order: {
               type: 'object',
               props: {
-                id: 'string',
                 customerId: 'string',
-                state: 'string',
                 product: 'string',
                 quantity: { type: 'number', positive: true, integer: true },
                 price: { type: 'number', positive: true },
@@ -55,23 +57,22 @@ class OrdersService extends Service {
           },
           handler: this.submitOrder,
         },
-        getOrder: {
-          params: {
-            id: 'string',
-          },
+        get: {
           handler: this.getOrder,
         },
-        getOrderValidation: {
-          params: {
-            id: 'string',
-          },
-          handler: this.getOrderValidation,
+        remove: {
+          handler: this.cancelOrder,
         },
       },
 
       events: {
         // No events
       },
+
+      // These entityX functions are called by the moleculer-db
+      // mixin when entities are created, updated, or deleted.
+      entityCreated: this.orderCreated,
+      entityUpdated: this.orderUpdated,
 
       created: this.serviceCreated,
       started: this.serviceStarted,
@@ -80,53 +81,101 @@ class OrdersService extends Service {
   }
 
   submitOrder(ctx) {
-    return this.send(ctx.params.order);
+    const { customerId, product, quantity, price } = ctx.params.order; // eslint-disable-line object-curly-newline
+    this.logger.debug('Submit Order:', customerId, product, quantity, price);
+
+    const entity = {
+      customerId,
+      product,
+      quantity,
+      price,
+      state: 'Pending',
+    };
+    return this.adapter.insert(entity)
+      .then(doc => this.transformDocuments(ctx, {}, doc))
+      .then(json => this.entityChanged('created', json, ctx).then(() => json));
+  }
+
+  getOrders() {
+    this.logger.debug('Get Orders');
+    return this.adapter.find();
   }
 
   getOrder(ctx) {
-    this.logger.debug('Get Order:', ctx.params.id);
+    const { id } = ctx.params;
+    this.logger.debug('Get Order:', id);
+    return this.adapter.findById(id);
   }
 
-  getOrderValidation(ctx) {
-    this.logger.debug('Get Order Validation:', ctx.params.id);
+  rejectOrder(ctx) {
+    const { id } = ctx.params;
+    this.logger.debug('Rejecting Order:', id);
+    return this.updateOrderState(ctx, id, 'Rejected');
   }
 
-  // const payloads = [{
-  //   topic: config.topic,
-  //   messages: ['test 1', 'test 2'],
-  //   attributes: 1, // Use GZip compression for the payload.
-  //   timestamp: Date.now()
-  // }];
-  send(order) {
-    const payload = this.createPayload(order);
+  cancelOrder(ctx) {
+    const { id } = ctx.params;
+    this.logger.debug('Cancelling Order:', id);
+    return this.updateOrderState(ctx, id, 'Cancelled');
+  }
+
+  completeOrder(ctx) {
+    const { id } = ctx.params;
+    this.logger.debug('Completing Order:', id);
+    return this.updateOrderState(ctx, id, 'Completed');
+  }
+
+  // Private methods
+  updateOrderState(ctx, id, state) {
+    const update = {
+      state,
+      updated: Date.now(),
+    };
+    return this.adapter.updateById(id, update)
+      .then(json => this.entityChanged('updated', json, ctx).then(() => json));
+  }
+
+  orderCreated(order, ctx) { // eslint-disable-line no-unused-vars
+    this.logger.debug('Order created:', order);
+    return this.sendEvent(order, 'OrderCreated');
+  }
+
+  orderUpdated(order, ctx) { // eslint-disable-line no-unused-vars
+    this.logger.debug('Order updated:', order);
+    return this.sendEvent(order, 'OrderUpdated');
+  }
+
+  sendEvent(order, type) {
     return new this.Promise((resolve, reject) => {
+      if (!order) {
+        reject('No order found when sending event.');
+      }
+      if (!type) {
+        reject('No event type specified when sending event.');
+      }
+
+      const data = order;
+      data.eventType = type;
+      this.logger.debug('data:', data);
+      const payload = this.createPayload(data);
       this.producer.send(payload, (error, result) => {
-        this.logger.debug('Sent payload to Kafka: ', payload);
+        this.logger.debug('Sent payload to Kafka:', JSON.stringify(payload));
         if (error) {
           reject(error);
         } else {
-          // const formattedResult = result[0]
-          this.logger.debug('result: ', result);
+          this.logger.debug('Result:', result);
           resolve(result);
         }
       });
     });
   }
 
-  createPayload(order) {
-    const { id, customerId, state, product, quantity, price } = order; // eslint-disable-line object-curly-newline
-    const message = new KeyedMessage(order.id, {
-      id,
-      customerId,
-      state,
-      product,
-      quantity,
-      price,
-    });
+  createPayload(data) {
+    const message = new KeyedMessage(data.id, JSON.stringify(data));
     return [{
       topic: this.settings.ordersTopic,
       messages: [message],
-      attributes: 1,
+      attributes: 1, // Use GZip compression for the payload.
       timestamp: Date.now(),
     }];
   }
@@ -141,8 +190,6 @@ class OrdersService extends Service {
     });
 
     // For this demo we just log client errors to the console.
-    client.on('error', error => this.logger.error(error));
-
     client.on('error', error => this.logger.error(error));
 
     this.producer = new HighLevelProducer(client, {

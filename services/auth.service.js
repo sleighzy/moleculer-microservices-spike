@@ -135,7 +135,7 @@ class AuthService extends Service {
    * @param {User} user the authenticated user
    * @param {String} token the JWT token
    */
-  addToken(user, withToken, token) {
+  addToken(user, token) {
     const { _id, username, email } = user;
     const identity = {
       _id,
@@ -143,10 +143,9 @@ class AuthService extends Service {
       email,
     };
 
-    if (withToken) {
-      identity.token = token || this.generateToken(user);
-    }
-    return { identity };
+    identity.token = token || this.generateToken(user);
+
+    return identity;
   }
 
   /**
