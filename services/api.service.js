@@ -29,6 +29,8 @@ class ApiService extends Service {
 
             'REST users': 'users',
 
+            'REST inventory': 'inventory',
+
             'REST orders': 'orders',
           },
         }],

@@ -79,6 +79,25 @@ services:
       - kafka
       - mongodb
 
+  inventory:
+    build:
+      context: .
+    image: moleculer-microservices-spike
+    env_file: docker-compose.env
+    environment:
+      NODEID: "node-inventory"
+      SERVICES: inventory
+    links:
+      - redis
+      - zookeeper
+      - kafka
+      - mongodb
+    depends_on:
+      - redis
+      - zookeeper
+      - kafka
+      - mongodb
+
   orders:
     build:
       context: .
