@@ -69,7 +69,7 @@ class AuthService extends Service {
     this.logger.debug('Logging in user:', username);
 
     return this.Promise.resolve()
-      .then(() => ctx.call('users.get', { id: username })) // 'id' is the parameter used by the user service.
+      .then(() => ctx.call('users.getUser', { username }))
       .then((user) => {
         if (!user) {
           return this.Promise.reject(new MoleculerClientError('Username or password is invalid!', 422, '', [{ field: 'username', message: 'is not found' }]));
@@ -94,7 +94,7 @@ class AuthService extends Service {
   register(ctx) {
     this.logger.debug('Registering user', ctx.params.user.username);
 
-    return ctx.call('users.create', ctx.params.user);
+    return ctx.call('users.createUser', { user: ctx.params.user });
   }
 
   /**
@@ -158,7 +158,7 @@ class AuthService extends Service {
    */
   getById(ctx, id) {
     this.logger.debug('Get by id: ', id);
-    return ctx.call('users.getById', { id });
+    return ctx.call('users.get', { id });
   }
 
   serviceCreated() {

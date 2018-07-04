@@ -27,7 +27,14 @@ class ApiService extends Service {
           aliases: {
             'POST login': 'auth.login',
 
-            'REST users': 'users',
+            // The user service aliases are defined explicitely v.s. 'REST' as the username is used
+            // for operations and not the id directly. These actions delegate to the underlying database
+            // mixin actions after the id for the user associated with the username has been retrieved.
+            'GET users': 'users.list',
+            'GET users/:username': 'users.getUser',
+            'POST users': 'users.createUser',
+            'PUT users/:username': 'users.updateUser',
+            'DELETE users/:username': 'users.deleteUser',
 
             'REST inventory': 'inventory',
 

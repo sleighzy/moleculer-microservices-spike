@@ -38,18 +38,13 @@ class UsersService extends Service {
       actions: {
         list: {
           auth: 'required',
-          handler: this.getUsers,
         },
-        get: {
+        getUser: {
           auth: 'required',
           handler: this.getUser,
         },
-        getById: {
+        createUser: {
           auth: 'required',
-          handler: this.getUserById,
-        },
-        create: {
-          // auth: 'required',    TODO: Initial admin user needs to be created before possible to login
           user: {
             type: 'object',
             props: {
@@ -60,7 +55,7 @@ class UsersService extends Service {
           },
           handler: this.createUser,
         },
-        update: {
+        updateUser: {
           auth: 'required',
           params: {
             user: {
@@ -73,7 +68,7 @@ class UsersService extends Service {
           },
           handler: this.updateUser,
         },
-        remove: {
+        deleteUser: {
           auth: 'required',
           handler: this.deleteUser,
         },
@@ -96,64 +91,62 @@ class UsersService extends Service {
   }
 
   // Action handlers
-  async getUsers() {
-    this.logger.debug('getUsers');
-    return this.adapter.find();
-  }
 
   async getUser(ctx) {
-    const username = ctx.params.id;
+    const { username } = ctx.params;
     this.logger.debug('getUser:', username);
-    return this.adapter.findOne({ username });
-  }
-
-  async getUserById(ctx) {
-    return this.adapter.findById(ctx.params.id);
+    return this.retrieveUser(ctx, username)
+      .then(user => ctx.call('users.get', { id: user._id })); // eslint-disable-line no-underscore-dangle
   }
 
   async createUser(ctx) {
     const { username, email, password } = ctx.params.user;
     this.logger.debug('createUser:', username);
 
-    const found = await this.adapter.findOne({ username });
-    if (found) {
+    const users = await ctx.call('users.find', { query: { username } });
+    if (users.length) {
       return Promise.reject(new MoleculerError('User already exists.', 422, '', [{ field: 'username', message: 'already exists' }]));
     }
 
-    const entity = {
+    const userEntity = {
       username,
       email,
       password: bcrypt.hashSync(password, 10),
     };
-    return this.adapter.insert(entity)
-      .then(doc => this.transformDocuments(ctx, {}, doc))
-      .then(user => this.transformUser(user, true, ctx.meta.token))
-      .then(json => this.entityChanged('created', json, ctx).then(() => json));
+    // This calls "users.insert" which is the insert() function from the DbService mixin.
+    return ctx.call('users.insert', { entity: userEntity })
+      .then(user => this.transformUser(user, true, ctx.meta.token));
   }
 
   async updateUser(ctx) {
     const { username, email } = ctx.params.user;
-    if (username !== ctx.params.id) {
+    if (username !== ctx.params.username) {
       return Promise.reject(new MoleculerError('User in request body does not match.', 422, '', [{ field: 'username', message: 'does not match' }]));
     }
     this.logger.debug('updateUser', username);
-
-    const update = {
-      email,
-      updated: Date.now(),
-    };
-    return this.adapter.updateMany({ username }, update)
-      .then(json => this.entityChanged('updated', json, ctx).then(() => json));
+    return this.retrieveUser(ctx, username)
+      .then(user => ctx.call('users.update', { id: user._id, email, updated: Date.now() })); // eslint-disable-line no-underscore-dangle
   }
 
   async deleteUser(ctx) {
-    const username = ctx.params.id;
+    const { username } = ctx.params;
     this.logger.debug('deleteUser:', username);
-    return this.adapter.removeMany({ username })
-      .then(json => this.entityChanged('removed', json, ctx).then(() => json));
+    return this.retrieveUser(ctx, username)
+      .then(user => ctx.call('users.remove', { id: user._id })); // eslint-disable-line no-underscore-dangle
   }
 
   // Private methods.
+
+  async retrieveUser(ctx, username) {
+    return ctx.call('users.find', { query: { username } })
+      .then((users) => {
+        if (!users.length) {
+          return this.Promise.reject(new MoleculerError(`User not found for username '${username}'`, 422, '', [{ field: 'username', message: 'is not found' }]));
+        }
+        return users[0];
+      });
+  }
+
   transformUser(user, withToken, token) {
     const identity = user;
     // TODO: add extra information to user object from identity source
@@ -169,17 +162,17 @@ class UsersService extends Service {
 
   userCreated(user, ctx) { // eslint-disable-line no-unused-vars
     this.logger.debug('User created:', user);
-    return this.sendEvent(user, 'userCreated');
+    return this.sendEvent(user, 'UserCreated');
   }
 
   userUpdated(user, ctx) { // eslint-disable-line no-unused-vars
     this.logger.debug('User updated:', user);
-    return this.sendEvent(user, 'userUpdated');
+    return this.sendEvent(user, 'UserUpdated');
   }
 
   userRemoved(user, ctx) { // eslint-disable-line no-unused-vars
     this.logger.debug('User deleted:', user);
-    return this.sendEvent(user, 'userRemoved');
+    return this.sendEvent(user, 'UserDeleted');
   }
 
   sendEvent(user, eventType) {
@@ -210,6 +203,7 @@ class UsersService extends Service {
   }
 
   // Event handlers
+
   serviceCreated() {
     this.logger.debug('Users service created.');
   }
