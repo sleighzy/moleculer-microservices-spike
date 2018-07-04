@@ -34,9 +34,6 @@ class OrdersService extends Service {
       },
 
       actions: {
-        list: {
-          handler: this.getOrders,
-        },
         create: {
           params: {
             order: {
@@ -50,9 +47,6 @@ class OrdersService extends Service {
             },
           },
           handler: this.submitOrder,
-        },
-        get: {
-          handler: this.getOrder,
         },
         remove: {
           handler: this.cancelOrder,
@@ -78,27 +72,15 @@ class OrdersService extends Service {
     const { customerId, product, quantity, price } = ctx.params.order; // eslint-disable-line object-curly-newline
     this.logger.debug('Submit Order:', customerId, product, quantity, price);
 
-    const entity = {
+    const order = {
       customerId,
       product,
       quantity,
       price,
       state: 'Pending',
     };
-    return this.adapter.insert(entity)
-      .then(doc => this.transformDocuments(ctx, {}, doc))
-      .then(json => this.entityChanged('created', json, ctx).then(() => json));
-  }
-
-  getOrders() {
-    this.logger.debug('Get Orders');
-    return this.adapter.find();
-  }
-
-  getOrder(ctx) {
-    const { id } = ctx.params;
-    this.logger.debug('Get Order:', id);
-    return this.adapter.findById(id);
+    // This calls "orders.insert" which is the insert() function from the DbService mixin.
+    return ctx.call('orders.insert', { entity: order });
   }
 
   rejectOrder(ctx) {
@@ -121,12 +103,9 @@ class OrdersService extends Service {
 
   // Private methods
   updateOrderState(ctx, id, state) {
-    const update = {
-      state,
-      updated: Date.now(),
-    };
-    return this.adapter.updateById(id, update)
-      .then(json => this.entityChanged('updated', json, ctx).then(() => json));
+    this.logger.debug('Update order state:', id, state);
+    // This calls "orders.update" which is the update() function from the DbService mixin.
+    return ctx.call('orders.update', { id, state, updated: Date.now() });
   }
 
   orderCreated(order, ctx) { // eslint-disable-line no-unused-vars
