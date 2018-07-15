@@ -177,7 +177,8 @@ class OrdersService extends Service {
         // This calls "orders.update" which is the update() function from the DbService mixin.
         resolve(this.broker.call('orders.update', orderEvent.order));
       } else {
-        this.logger.error('eventType:', orderEvent.eventType);
+        // Not an error as services may publish different event types in the future.
+        this.logger.debug('Unknown eventType:', orderEvent.eventType);
       }
     });
   }
@@ -218,7 +219,7 @@ class OrdersService extends Service {
    * @returns {Array} an array of order event messages.
    */
   createPayload(data) {
-    const message = new KeyedMessage(data.id, JSON.stringify(data));
+    const message = new KeyedMessage(data.product, JSON.stringify(data));
     return [{
       topic: this.settings.ordersTopic,
       messages: [message],

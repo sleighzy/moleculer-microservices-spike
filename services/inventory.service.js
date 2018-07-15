@@ -4,6 +4,7 @@ const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
 const { HighLevelProducer, KeyedMessage, KafkaClient } = require('kafka-node');
+const Kafka = require('kafka-node');
 
 class InventoryService extends Service {
   constructor(broker) {
@@ -61,12 +62,6 @@ class InventoryService extends Service {
         // No events
       },
 
-      // These entityX functions are called by the moleculer-db
-      // mixin when entities are created, updated, or deleted.
-      entityCreated: this.itemAdded,
-      entityUpdated: this.itemUpdated,
-      entityRemoved: this.itemRemoved,
-
       created: this.serviceCreated,
       started: this.serviceStarted,
       stopped: this.serviceStopped,
@@ -82,8 +77,8 @@ class InventoryService extends Service {
       price,
       state: 'Available',
     };
-    // This calls "inventory.insert" which is the insert() function from the DbService mixin.
-    return ctx.call('inventory.insert', { entity: newProduct });
+
+    return this.sendEvent(newProduct, 'ItemAdded');
   }
 
   reserveItem(ctx) {
@@ -125,65 +120,14 @@ class InventoryService extends Service {
 
   updateItemState(ctx, id, state) {
     this.logger.debug('Update item state:', id, state);
-    // This calls "inventory.update" which is the update() function from the DbService mixin.
-    return ctx.call('inventory.update', { id, state, updated: Date.now() });
+
+    return this.sendEvent({ id, state, updated: Date.now() }, 'ItemUpdated');
   }
 
-  itemAdded(item, ctx) { // eslint-disable-line no-unused-vars
-    this.logger.debug('Item added:', item);
-    return this.sendEvent(item, 'ItemAdded');
-  }
-
-  itemUpdated(item, ctx) { // eslint-disable-line no-unused-vars
-    this.logger.debug('Item updated:', item);
-    return this.sendEvent(item, 'ItemUpdated');
-  }
-
-  itemRemoved(item, ctx) { // eslint-disable-line no-unused-vars
-    this.logger.debug('Item removed:', item);
-    return this.sendEvent(item, 'ItemRemoved');
-  }
-
-  sendEvent(item, type) {
-    return new this.Promise((resolve, reject) => {
-      if (!item) {
-        reject('No item found when sending event.');
-      }
-      if (!type) {
-        reject('No event type specified when sending event.');
-      }
-
-      const data = item;
-      data.eventType = type;
-      this.logger.debug('data:', data);
-      const payload = this.createPayload(data);
-      this.producer.send(payload, (error, result) => {
-        this.logger.debug('Sent payload to Kafka:', JSON.stringify(payload));
-        if (error) {
-          reject(error);
-        } else {
-          this.logger.debug('Result:', result);
-          resolve(result);
-        }
-      });
-    });
-  }
-
-  createPayload(data) {
-    const message = new KeyedMessage(data.id, JSON.stringify(data));
-    return [{
-      topic: this.settings.inventoryTopic,
-      messages: [message],
-      attributes: 1, // Use GZip compression for the payload.
-      timestamp: Date.now(),
-    }];
-  }
-
-  serviceCreated() {
-    this.logger.debug('Inventory service created.');
-  }
-
-  serviceStarted() {
+  /**
+   * Function to create a Kafka producer to publish item events to a kafka topic.
+   */
+  startKafkaProducer() {
     const client = new KafkaClient({
       kafkaHost: this.settings.bootstrapServer,
     });
@@ -201,6 +145,121 @@ class InventoryService extends Service {
     });
 
     this.producer.on('error', error => this.logger.error(error));
+  }
+
+  /**
+   * Function to create a Kafka consumer and start consuming events off the inventory topic.
+   */
+  startKafkaConsumer() {
+    const kafkaOptions = {
+      kafkaHost: this.settings.bootstrapServer, // connect directly to kafka broker (instantiates a KafkaClient)
+      batch: undefined, // put client batch settings if you need them (see Client)
+      // ssl: true, // optional (defaults to false) or tls options hash
+      groupId: 'kafka-node-inventory',
+      sessionTimeout: 15000,
+      // An array of partition assignment protocols ordered by preference.
+      // 'roundrobin' or 'range' string for built ins (see below to pass in custom assignment protocol)
+      protocol: ['roundrobin'],
+
+      // Set encoding to 'buffer' for binary data.
+      // encoding: 'buffer',
+
+      // Offsets to use for new groups other options could be 'earliest' or 'none' (none will emit an error if no offsets were saved)
+      // equivalent to Java client's auto.offset.reset
+      fromOffset: 'latest', // default
+
+      // how to recover from OutOfRangeOffset error (where save offset is past server retention) accepts same value as fromOffset
+      outOfRangeOffset: 'earliest', // default
+      migrateHLC: false, // for details please see Migration section below
+      migrateRolling: true,
+    };
+
+    this.consumer = new Kafka.ConsumerGroup(kafkaOptions, this.settings.inventoryTopic);
+    this.consumer.on('message', message => this.processEvent(message.value));
+    this.consumer.on('error', err => this.Promise.reject(new MoleculerError(`${err.message} ${err.detail}`, 500, 'CONSUMER_MESSAGE_ERROR')));
+
+    process.on('SIGINT', () => this.consumer.close(true));
+  }
+
+  /**
+   * Function to consume item events from a Kafka topic and process them.
+   *
+   * @param {Object} event event containing event tpye and item information.
+   * @returns {Promise}
+   */
+  processEvent(event) {
+    this.logger.debug(event);
+    const itemEvent = JSON.parse(event);
+
+    return new this.Promise((resolve) => {
+      if (itemEvent.eventType === 'ItemAdded') {
+        // This calls "inventory.insert" which is the insert() function from the DbService mixin.
+        resolve(this.broker.call('inventory.insert', { entity: itemEvent.item }));
+      } else if (itemEvent.eventType === 'ItemUpdated') {
+        // This calls "inventory.update" which is the update() function from the DbService mixin.
+        resolve(this.broker.call('inventory.update', itemEvent.item));
+      } else if (itemEvent.eventType === 'ItemRemoved') {
+        // This calls "inventory.update" which is the remove() function from the DbService mixin.
+        resolve(this.broker.call('inventory.remove', itemEvent.item));
+      } else {
+        // Not an error as services may publish different event types in the future.
+        this.logger.debug('Uknown eventType:', itemEvent.eventType);
+      }
+    });
+  }
+
+  /**
+   * Function to publish item event data to a Kafka topic.
+   *
+   * @param {Object} item the item information
+   * @param {String} type the event type
+   * @returns {Promise}
+   */
+  sendEvent(item, type) {
+    return new this.Promise((resolve, reject) => {
+      if (!item) {
+        reject('No item found when sending event.');
+      }
+      if (!type) {
+        reject('No event type specified when sending event.');
+      }
+
+      const payload = this.createPayload({ item, eventType: type });
+      this.producer.send(payload, (error, result) => {
+        this.logger.debug('Sent payload to Kafka:', JSON.stringify(payload));
+        if (error) {
+          reject(error);
+        } else {
+          this.logger.debug('Result:', result);
+          resolve(result);
+        }
+      });
+    });
+  }
+
+  /**
+   * Function to create a Kafka message payload with an item event.
+   *
+   * @param {any} data Item event data.
+   * @returns {Array} an array of item event messages.
+   */
+  createPayload(data) {
+    const message = new KeyedMessage(data.product, JSON.stringify(data));
+    return [{
+      topic: this.settings.inventoryTopic,
+      messages: [message],
+      attributes: 1, // Use GZip compression for the payload.
+      timestamp: Date.now(),
+    }];
+  }
+
+  serviceCreated() {
+    this.logger.debug('Inventory service created.');
+  }
+
+  serviceStarted() {
+    this.startKafkaProducer();
+    this.startKafkaConsumer();
 
     this.logger.debug('Inventory service started.');
   }
