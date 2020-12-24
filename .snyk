@@ -1,0 +1,27 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.19.0
+ignore: {}
+# patches apply the minimum changes required to fix a vulnerability
+patch:
+  'npm:extend:20180424':
+    - slack-node > requestretry > extend:
+        patched: '2020-12-24T07:02:58.031Z'
+    - slack-node > requestretry > request > extend:
+        patched: '2020-12-24T07:02:58.031Z'
+  SNYK-JS-LODASH-567746:
+    - kafka-node > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
+    - moleculer-db > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
+    - kafka-node > async > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
+    - mongoose > async > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
+    - slack-node > requestretry > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
+    - kafka-streams > sinek > async > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
+    - kafka-streams > sinek > kafka-node > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
+    - kafka-streams > sinek > kafka-node > async > lodash:
+        patched: '2020-12-24T07:02:58.031Z'
