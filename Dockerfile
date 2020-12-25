@@ -1,5 +1,4 @@
-#FROM node:8-alpine
-FROM node:8
+FROM node:10.23-buster-slim
 
 ENV NODE_ENV=production
 
