@@ -50,17 +50,26 @@ class SlackService extends Service {
   sendMessage(message) {
     this.logger.debug(`Sending message '${message}'`);
 
-    this.slack.webhook({
-      channel: this.settings.channel,
-      username: this.settings.username,
-      text: message,
-    }, (err, response) => {
-      if (err) {
-        return this.Promise.reject(new MoleculerError(`${err.message} ${err.detail}`, 500, 'SEND_MESSAGE_ERROR'));
-      }
-      this.logger.debug(response);
-      return this.Promise.resolve(response);
-    });
+    this.slack.webhook(
+      {
+        channel: this.settings.channel,
+        username: this.settings.username,
+        text: message,
+      },
+      (err, response) => {
+        if (err) {
+          return this.Promise.reject(
+            new MoleculerError(
+              `${err.message} ${err.detail}`,
+              500,
+              'SEND_MESSAGE_ERROR',
+            ),
+          );
+        }
+        this.logger.debug(response);
+        return this.Promise.resolve(response);
+      },
+    );
   }
 
   /**
@@ -68,19 +77,29 @@ class SlackService extends Service {
    */
   serviceCreated() {
     if (!this.settings.webhookUri) {
-      this.logger.warn("The `webhookUri` is not configured. Please set the 'SLACK_WEBHOOK_URI' environment variable!");
+      this.logger.warn(
+        "The `webhookUri` is not configured. Please set the 'SLACK_WEBHOOK_URI' environment variable!",
+      );
     }
     if (!this.settings.channel) {
-      this.logger.warn("The `channel` is not configured. Please set the 'SLACK_CHANNEL' environment variable!");
+      this.logger.warn(
+        "The `channel` is not configured. Please set the 'SLACK_CHANNEL' environment variable!",
+      );
     }
     if (!this.settings.username) {
-      this.logger.warn("The `username` is not configured. Please set the 'SLACK_USERNAME' environment variable!");
+      this.logger.warn(
+        "The `username` is not configured. Please set the 'SLACK_USERNAME' environment variable!",
+      );
     }
     if (!this.settings.bootstrapServer) {
-      this.logger.warn("The `bootstrapServer` is not configured. Please set the 'SLACK_BOOTSTRAP_SERVER' environment variable!");
+      this.logger.warn(
+        "The `bootstrapServer` is not configured. Please set the 'SLACK_BOOTSTRAP_SERVER' environment variable!",
+      );
     }
     if (!this.settings.kafkaTopic) {
-      this.logger.warn("The `kafkaTopic` is not configured. Please set the 'SLACK_KAFKA_TOPIC' environment variable!");
+      this.logger.warn(
+        "The `kafkaTopic` is not configured. Please set the 'SLACK_KAFKA_TOPIC' environment variable!",
+      );
     }
 
     this.logger.debug('Slack service created.');
@@ -118,7 +137,10 @@ class SlackService extends Service {
       migrateRolling: true,
     };
 
-    this.consumer = new Kafka.ConsumerGroup(kafkaOptions, this.settings.kafkaTopic);
+    this.consumer = new Kafka.ConsumerGroup(
+      kafkaOptions,
+      this.settings.kafkaTopic,
+    );
 
     this.consumer.on('message', (message) => {
       // csonst buf = new Buffer(message.value, 'binary'), // Read string into a buffer.
@@ -130,7 +152,15 @@ class SlackService extends Service {
       return this.sendMessage(message.value);
     });
 
-    this.consumer.on('error', err => this.Promise.reject(new MoleculerError(`${err.message} ${err.detail}`, 500, 'CONSUMER_MESSAGE_ERROR')));
+    this.consumer.on('error', (err) =>
+      this.Promise.reject(
+        new MoleculerError(
+          `${err.message} ${err.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      ),
+    );
 
     process.on('SIGINT', () => this.consumer.close(true));
 

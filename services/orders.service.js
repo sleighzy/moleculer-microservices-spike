@@ -3,7 +3,7 @@ const { MoleculerError } = require('moleculer').Errors;
 const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
-const { HighLevelProducer, KeyedMessage, KafkaClient } = require('kafka-node'); // eslint-disable-line object-curly-newline
+const { HighLevelProducer, KeyedMessage, KafkaClient } = require('kafka-node');
 const Kafka = require('kafka-node');
 
 class OrdersService extends Service {
@@ -19,19 +19,35 @@ class OrdersService extends Service {
       mixins: [DbService],
 
       adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
-      model: mongoose.model('Order', mongoose.Schema({
-        customerId: { type: Number },
-        product: { type: String },
-        quantity: { type: Number },
-        price: { type: Number },
-        state: { type: String, enum: ['Pending', 'Approved', 'Rejected', 'Completed', 'Cancelled'] },
-        created: { type: Date, default: Date.now },
-        updated: { type: Date, default: Date.now },
-      })),
+      fields: [
+        '_id',
+        'customerId',
+        'product',
+        'quantity',
+        'price',
+        'created',
+        'updated',
+        'state',
+      ],
+      model: mongoose.model(
+        'Order',
+        mongoose.Schema({
+          customerId: { type: Number },
+          product: { type: String },
+          quantity: { type: Number },
+          price: { type: Number },
+          state: {
+            type: String,
+            enum: ['Pending', 'Approved', 'Rejected', 'Completed', 'Cancelled'],
+          },
+          created: { type: Date, default: Date.now },
+          updated: { type: Date, default: Date.now },
+        }),
+      ),
 
       settings: {
-        bootstrapServer: process.env.ORDERS_BOOTSTRAP_SERVER || 'localhost:9092',
+        bootstrapServer:
+          process.env.ORDERS_BOOTSTRAP_SERVER || 'localhost:9092',
         ordersTopic: process.env.ORDERS_TOPIC || 'orders',
       },
 
@@ -66,7 +82,7 @@ class OrdersService extends Service {
   }
 
   submitOrder(ctx) {
-    const { customerId, product, quantity, price } = ctx.params.order; // eslint-disable-line object-curly-newline
+    const { customerId, product, quantity, price } = ctx.params.order;
     this.logger.debug('Submit Order:', customerId, product, quantity, price);
 
     const order = {
@@ -111,7 +127,7 @@ class OrdersService extends Service {
     });
 
     // For this demo we just log client errors to the console.
-    client.on('error', error => this.logger.error(error));
+    client.on('error', (error) => this.logger.error(error));
 
     this.producer = new HighLevelProducer(client, {
       // Configuration for when to consider a message as acknowledged, default 1
@@ -122,7 +138,7 @@ class OrdersService extends Service {
       partitionerType: 3,
     });
 
-    this.producer.on('error', error => this.logger.error(error));
+    this.producer.on('error', (error) => this.logger.error(error));
   }
 
   /**
@@ -152,9 +168,20 @@ class OrdersService extends Service {
       migrateRolling: true,
     };
 
-    this.consumer = new Kafka.ConsumerGroup(kafkaOptions, this.settings.ordersTopic);
-    this.consumer.on('message', message => this.processEvent(message.value));
-    this.consumer.on('error', err => this.Promise.reject(new MoleculerError(`${err.message} ${err.detail}`, 500, 'CONSUMER_MESSAGE_ERROR')));
+    this.consumer = new Kafka.ConsumerGroup(
+      kafkaOptions,
+      this.settings.ordersTopic,
+    );
+    this.consumer.on('message', (message) => this.processEvent(message.value));
+    this.consumer.on('error', (err) =>
+      this.Promise.reject(
+        new MoleculerError(
+          `${err.message} ${err.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      ),
+    );
 
     process.on('SIGINT', () => this.consumer.close(true));
   }
@@ -172,7 +199,9 @@ class OrdersService extends Service {
     return new this.Promise((resolve) => {
       if (orderEvent.eventType === 'OrderCreated') {
         // This calls "orders.insert" which is the insert() function from the DbService mixin.
-        resolve(this.broker.call('orders.insert', { entity: orderEvent.order }));
+        resolve(
+          this.broker.call('orders.insert', { entity: orderEvent.order }),
+        );
       } else if (orderEvent.eventType === 'OrderUpdated') {
         // This calls "orders.update" which is the update() function from the DbService mixin.
         resolve(this.broker.call('orders.update', orderEvent.order));
@@ -220,12 +249,14 @@ class OrdersService extends Service {
    */
   createPayload(data) {
     const message = new KeyedMessage(data.product, JSON.stringify(data));
-    return [{
-      topic: this.settings.ordersTopic,
-      messages: [message],
-      attributes: 1, // Use GZip compression for the payload.
-      timestamp: Date.now(),
-    }];
+    return [
+      {
+        topic: this.settings.ordersTopic,
+        messages: [message],
+        attributes: 1, // Use GZip compression for the payload.
+        timestamp: Date.now(),
+      },
+    ];
   }
 
   serviceCreated() {

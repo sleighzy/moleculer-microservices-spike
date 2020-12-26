@@ -67,7 +67,10 @@ class EmailerService extends Service {
         // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
         // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
         // Preview only available when sending through an Ethereal account
-        this.logger.debug('Preview URL: %s', nodemailer.getTestMessageUrl(info));
+        this.logger.debug(
+          'Preview URL: %s',
+          nodemailer.getTestMessageUrl(info),
+        );
 
         resolve(nodemailer.getTestMessageUrl(info));
       });
@@ -78,7 +81,7 @@ class EmailerService extends Service {
    * Service created lifecycle event handler
    */
   serviceCreated() {
-    const { host, port, user, pass } = this.settings.smtp; // eslint-disable-line object-curly-newline
+    const { host, port, user, pass } = this.settings.smtp;
 
     this.transporter = nodemailer.createTransport({
       host,

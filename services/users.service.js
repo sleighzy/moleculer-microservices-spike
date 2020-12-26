@@ -21,13 +21,16 @@ class UsersService extends Service {
 
       adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'username', 'email'],
-      model: mongoose.model('User', mongoose.Schema({
-        username: { type: String },
-        password: { type: String },
-        email: { type: String },
-        created: { type: Date, default: Date.now },
-        updated: { type: Date, default: Date.now },
-      })),
+      model: mongoose.model(
+        'User',
+        mongoose.Schema({
+          username: { type: String },
+          password: { type: String },
+          email: { type: String },
+          created: { type: Date, default: Date.now },
+          updated: { type: Date, default: Date.now },
+        }),
+      ),
 
       settings: {
         jwtSecret: process.env.JWT_SECRET || 'jwt-secret-string',
@@ -95,8 +98,10 @@ class UsersService extends Service {
   async getUser(ctx) {
     const { username } = ctx.params;
     this.logger.debug('getUser:', username);
-    return this.retrieveUser(ctx, username)
-      .then(user => ctx.call('users.get', { id: user._id })); // eslint-disable-line no-underscore-dangle
+    return this.retrieveUser(ctx, username).then((user) =>
+      // eslint-disable-next-line no-underscore-dangle
+      ctx.call('users.get', { id: user._id }),
+    );
   }
 
   async createUser(ctx) {
@@ -105,7 +110,11 @@ class UsersService extends Service {
 
     const users = await ctx.call('users.find', { query: { username } });
     if (users.length) {
-      return Promise.reject(new MoleculerError('User already exists.', 422, '', [{ field: 'username', message: 'already exists' }]));
+      return Promise.reject(
+        new MoleculerError('User already exists.', 422, '', [
+          { field: 'username', message: 'already exists' },
+        ]),
+      );
     }
 
     const userEntity = {
@@ -114,37 +123,52 @@ class UsersService extends Service {
       password: bcrypt.hashSync(password, 10),
     };
     // This calls "users.insert" which is the insert() function from the DbService mixin.
-    return ctx.call('users.insert', { entity: userEntity })
-      .then(user => this.transformUser(user, true, ctx.meta.token));
+    return ctx
+      .call('users.insert', { entity: userEntity })
+      .then((user) => this.transformUser(user, true, ctx.meta.token));
   }
 
   async updateUser(ctx) {
     const { username, email } = ctx.params.user;
     if (username !== ctx.params.username) {
-      return Promise.reject(new MoleculerError('User in request body does not match.', 422, '', [{ field: 'username', message: 'does not match' }]));
+      return Promise.reject(
+        new MoleculerError('User in request body does not match.', 422, '', [
+          { field: 'username', message: 'does not match' },
+        ]),
+      );
     }
     this.logger.debug('updateUser', username);
-    return this.retrieveUser(ctx, username)
-      .then(user => ctx.call('users.update', { id: user._id, email, updated: Date.now() })); // eslint-disable-line no-underscore-dangle
+    return this.retrieveUser(ctx, username).then((user) =>
+      // eslint-disable-next-line no-underscore-dangle
+      ctx.call('users.update', { id: user._id, email, updated: Date.now() }),
+    );
   }
 
   async deleteUser(ctx) {
     const { username } = ctx.params;
     this.logger.debug('deleteUser:', username);
-    return this.retrieveUser(ctx, username)
-      .then(user => ctx.call('users.remove', { id: user._id })); // eslint-disable-line no-underscore-dangle
+    return this.retrieveUser(ctx, username).then((user) =>
+      // eslint-disable-next-line no-underscore-dangle
+      ctx.call('users.remove', { id: user._id }),
+    );
   }
 
   // Private methods.
 
   async retrieveUser(ctx, username) {
-    return ctx.call('users.find', { query: { username } })
-      .then((users) => {
-        if (!users.length) {
-          return this.Promise.reject(new MoleculerError(`User not found for username '${username}'`, 422, '', [{ field: 'username', message: 'is not found' }]));
-        }
-        return users[0];
-      });
+    return ctx.call('users.find', { query: { username } }).then((users) => {
+      if (!users.length) {
+        return this.Promise.reject(
+          new MoleculerError(
+            `User not found for username '${username}'`,
+            422,
+            '',
+            [{ field: 'username', message: 'is not found' }],
+          ),
+        );
+      }
+      return users[0];
+    });
   }
 
   transformUser(user, withToken, token) {
@@ -157,20 +181,28 @@ class UsersService extends Service {
   }
 
   generateToken(user) {
-    return jwt.sign({ id: user._id, username: user.username }, this.settings.jwtSecret, { expiresIn: '60m' }); // eslint-disable-line no-underscore-dangle
+    return jwt.sign(
+      // eslint-disable-next-line no-underscore-dangle
+      { id: user._id, username: user.username },
+      this.settings.jwtSecret,
+      { expiresIn: '60m' },
+    );
   }
 
-  userCreated(user, ctx) { // eslint-disable-line no-unused-vars
+  // eslint-disable-next-line no-unused-vars
+  userCreated(user, ctx) {
     this.logger.debug('User created:', user);
     return this.sendEvent(user, 'UserCreated');
   }
 
-  userUpdated(user, ctx) { // eslint-disable-line no-unused-vars
+  // eslint-disable-next-line no-unused-vars
+  userUpdated(user, ctx) {
     this.logger.debug('User updated:', user);
     return this.sendEvent(user, 'UserUpdated');
   }
 
-  userRemoved(user, ctx) { // eslint-disable-line no-unused-vars
+  // eslint-disable-next-line no-unused-vars
+  userRemoved(user, ctx) {
     this.logger.debug('User deleted:', user);
     return this.sendEvent(user, 'UserDeleted');
   }
@@ -194,12 +226,14 @@ class UsersService extends Service {
 
   createPayload(user) {
     const message = new KeyedMessage(user.username, JSON.stringify(user));
-    return [{
-      topic: this.settings.usersTopic,
-      messages: [message],
-      attributes: 1, // Use GZip compression for the payload.
-      timestamp: Date.now(),
-    }];
+    return [
+      {
+        topic: this.settings.usersTopic,
+        messages: [message],
+        attributes: 1, // Use GZip compression for the payload.
+        timestamp: Date.now(),
+      },
+    ];
   }
 
   // Event handlers
@@ -214,7 +248,7 @@ class UsersService extends Service {
     });
 
     // For this demo we just log client errors to the console.
-    client.on('error', error => this.logger.error(error));
+    client.on('error', (error) => this.logger.error(error));
 
     this.producer = new HighLevelProducer(client, {
       // Configuration for when to consider a message as acknowledged, default 1
@@ -225,7 +259,7 @@ class UsersService extends Service {
       partitionerType: 3,
     });
 
-    this.producer.on('error', error => this.logger.error(error));
+    this.producer.on('error', (error) => this.logger.error(error));
 
     this.logger.debug('Users service started.');
   }
