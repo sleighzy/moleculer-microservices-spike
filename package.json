@@ -41,7 +41,7 @@
     "moleculer-db": "^0.8.11",
     "moleculer-db-adapter-mongoose": "^0.8.0",
     "moleculer-jaeger": "^0.2.2",
-    "moleculer-web": "^0.9.0",
+    "moleculer-web": "^0.9.1",
     "mongodb": "^3.6.3",
     "mongoose": "^5.11.7",
     "nodemailer": "^6.4.16",
