@@ -25,6 +25,7 @@ class ApiService extends Service {
 
             aliases: {
               'POST login': 'auth.login',
+              'POST register': 'auth.register',
 
               // The user service aliases are defined explicitely v.s. 'REST' as the username is used
               // for operations and not the id directly. These actions delegate to the underlying database
