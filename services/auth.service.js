@@ -72,17 +72,30 @@ class AuthService extends Service {
       .then(() => ctx.call('users.getUser', { username }))
       .then((user) => {
         if (!user) {
-          return this.Promise.reject(new MoleculerClientError('Username or password is invalid!', 422, '', [{ field: 'username', message: 'is not found' }]));
+          return this.Promise.reject(
+            new MoleculerClientError(
+              'Username or password is invalid!',
+              422,
+              '',
+              [{ field: 'username', message: 'is not found' }],
+            ),
+          );
         }
-        return bcrypt.compare(password, user.password)
-          .then((res) => {
-            if (!res) {
-              return this.Promise.reject(new MoleculerClientError('Username or password is invalid!', 422, '', [{ field: 'password', message: 'is not valid' }]));
-            }
-            return user;
-          });
+        return bcrypt.compare(password, user.password).then((res) => {
+          if (!res) {
+            return this.Promise.reject(
+              new MoleculerClientError(
+                'Username or password is invalid!',
+                422,
+                '',
+                [{ field: 'password', message: 'is not valid' }],
+              ),
+            );
+          }
+          return user;
+        });
       })
-      .then(user => this.addToken(user, ctx.meta.token));
+      .then((user) => this.addToken(user, ctx.meta.token));
   }
 
   /**
@@ -106,12 +119,13 @@ class AuthService extends Service {
    */
   resolveToken(ctx) {
     return new this.Promise((resolve, reject) => {
-      jwt.verify(ctx.params.token, this.settings.jwtSecret, (err, decoded) => {
-        if (err) {
-          return reject(err);
-        }
-        return resolve(decoded);
-      })
+      jwt
+        .verify(ctx.params.token, this.settings.jwtSecret, (err, decoded) => {
+          if (err) {
+            return reject(err);
+          }
+          return resolve(decoded);
+        })
         .then((decoded) => {
           if (decoded.id) {
             return this.getById(ctx, decoded.id);
@@ -147,7 +161,12 @@ class AuthService extends Service {
    * @returns signed JWT token
    */
   generateToken(user) {
-    return jwt.sign({ id: user._id, username: user.username }, this.settings.jwtSecret, { expiresIn: '60m' }); // eslint-disable-line no-underscore-dangle
+    return jwt.sign(
+      // eslint-disable-next-line no-underscore-dangle
+      { id: user._id, username: user.username },
+      this.settings.jwtSecret,
+      { expiresIn: '60m' },
+    );
   }
 
   /**

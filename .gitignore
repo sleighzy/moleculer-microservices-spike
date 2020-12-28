@@ -1,3 +1,8 @@
+.DS_Store
+
+# Environment variables for Docker Compose services
+docker-compose.env
+
 # Logs
 logs
 *.log

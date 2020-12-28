@@ -20,16 +20,20 @@ class InventoryService extends Service {
 
       adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'product', 'price', 'state', 'created', 'updated'],
-      model: mongoose.model('Product', mongoose.Schema({
-        product: { type: String },
-        price: { type: Number },
-        state: { type: String, enum: ['Available', 'Reserved', 'Shipped'] },
-        created: { type: Date, default: Date.now },
-        updated: { type: Date, default: Date.now },
-      })),
+      model: mongoose.model(
+        'Product',
+        mongoose.Schema({
+          product: { type: String },
+          price: { type: Number },
+          state: { type: String, enum: ['Available', 'Reserved', 'Shipped'] },
+          created: { type: Date, default: Date.now },
+          updated: { type: Date, default: Date.now },
+        }),
+      ),
 
       settings: {
-        bootstrapServer: process.env.INVENTORY_BOOTSTRAP_SERVER || 'localhost:9092',
+        bootstrapServer:
+          process.env.INVENTORY_BOOTSTRAP_SERVER || 'localhost:9092',
         inventoryTopic: process.env.INVENTORY_TOPIC || 'inventory',
       },
 
@@ -89,15 +93,27 @@ class InventoryService extends Service {
       .then(() => this.getQuantity(ctx, product, true))
       .then((available) => {
         if (quantity > available) {
-          return this.Promise.reject(new MoleculerError(`Not enough items available in inventory for product '${product}'.`));
+          return this.Promise.reject(
+            new MoleculerError(
+              `Not enough items available in inventory for product '${product}'.`,
+            ),
+          );
         }
         // Retrieve "Available" items, limited by the requested quantity to reserve.
         // This calls "inventory.list" which is the list() function from the DbService mixin.
         // Update each item retrieved and set their state to "Reserved" while payment processing takes place.
-        return ctx.call('inventory.list', { query: { product, state: 'Available' }, pageSize: quantity });
+        return ctx.call('inventory.list', {
+          query: { product, state: 'Available' },
+          pageSize: quantity,
+        });
       })
-      .then(res => res.rows.forEach(doc => this.updateItemState(ctx, doc._id, 'Reserved'))) // eslint-disable-line no-underscore-dangle
-      .catch(err => this.logger.error(err));
+      .then((res) =>
+        res.rows.forEach((doc) =>
+          // eslint-disable-next-line no-underscore-dangle
+          this.updateItemState(ctx, doc._id, 'Reserved'),
+        ),
+      )
+      .catch((err) => this.logger.error(err));
   }
 
   shipItem(ctx) {
@@ -133,7 +149,7 @@ class InventoryService extends Service {
     });
 
     // For this demo we just log client errors to the console.
-    client.on('error', error => this.logger.error(error));
+    client.on('error', (error) => this.logger.error(error));
 
     this.producer = new HighLevelProducer(client, {
       // Configuration for when to consider a message as acknowledged, default 1
@@ -144,7 +160,7 @@ class InventoryService extends Service {
       partitionerType: 3,
     });
 
-    this.producer.on('error', error => this.logger.error(error));
+    this.producer.on('error', (error) => this.logger.error(error));
   }
 
   /**
@@ -174,9 +190,20 @@ class InventoryService extends Service {
       migrateRolling: true,
     };
 
-    this.consumer = new Kafka.ConsumerGroup(kafkaOptions, this.settings.inventoryTopic);
-    this.consumer.on('message', message => this.processEvent(message.value));
-    this.consumer.on('error', err => this.Promise.reject(new MoleculerError(`${err.message} ${err.detail}`, 500, 'CONSUMER_MESSAGE_ERROR')));
+    this.consumer = new Kafka.ConsumerGroup(
+      kafkaOptions,
+      this.settings.inventoryTopic,
+    );
+    this.consumer.on('message', (message) => this.processEvent(message.value));
+    this.consumer.on('error', (err) =>
+      this.Promise.reject(
+        new MoleculerError(
+          `${err.message} ${err.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      ),
+    );
 
     process.on('SIGINT', () => this.consumer.close(true));
   }
@@ -194,7 +221,9 @@ class InventoryService extends Service {
     return new this.Promise((resolve) => {
       if (itemEvent.eventType === 'ItemAdded') {
         // This calls "inventory.insert" which is the insert() function from the DbService mixin.
-        resolve(this.broker.call('inventory.insert', { entity: itemEvent.item }));
+        resolve(
+          this.broker.call('inventory.insert', { entity: itemEvent.item }),
+        );
       } else if (itemEvent.eventType === 'ItemUpdated') {
         // This calls "inventory.update" which is the update() function from the DbService mixin.
         resolve(this.broker.call('inventory.update', itemEvent.item));
@@ -245,12 +274,14 @@ class InventoryService extends Service {
    */
   createPayload(data) {
     const message = new KeyedMessage(data.product, JSON.stringify(data));
-    return [{
-      topic: this.settings.inventoryTopic,
-      messages: [message],
-      attributes: 1, // Use GZip compression for the payload.
-      timestamp: Date.now(),
-    }];
+    return [
+      {
+        topic: this.settings.inventoryTopic,
+        messages: [message],
+        attributes: 1, // Use GZip compression for the payload.
+        timestamp: Date.now(),
+      },
+    ];
   }
 
   serviceCreated() {

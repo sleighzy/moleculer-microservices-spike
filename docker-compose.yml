@@ -1,175 +1,133 @@
-version: "3.0"
+version: '3.0'
+
+# Not mounting these as external persistent host volumes
+# as this data only needs to be ephemeral for dev purposes
+volumes:
+  zookeeper-txn-logs:
+    # external: true
+  zookeeper-data:
+    # external: true
+  kafka-data:
+    # external: true
+
+# Provide docker logging driver options to keep size limit on
+# generated logs as Docker has no limits and will grow infinitely
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '1'
 
 services:
-
   api:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
     environment:
-      NODEID: "node-api"
+      NODEID: 'node-api'
       SERVICES: api
       PORT: 4000
-    links:
-      - redis
-      - zookeeper
-      - kafka
-    depends_on:
-      - redis
-      - zookeeper
-      - kafka
     labels:
-      - "traefik.enable=true"
-      - "traefik.backend=api"
-      - "traefik.port=4000"
-      - "traefik.frontend.entryPoints=http"
-      - "traefik.frontend.rule=PathPrefix:/"
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.api.entrypoints=http'
+      - 'traefik.http.routers.api.rule=Host(`api-127-0-0-1.nip.io`)'
+      - 'traefik.http.services.api.loadbalancer.server.port=4000'
 
   auth:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
     environment:
-      NODEID: "node-auth"
+      NODEID: 'node-auth'
       SERVICES: auth
-    links:
-      - redis
-      - zookeeper
-      - kafka
-    depends_on:
-      - redis
-      - zookeeper
-      - kafka
 
   metrics:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
     environment:
-      NODEID: "node-metrics"
+      NODEID: 'node-metrics'
       SERVICES: metrics
-    links:
-      - redis
-      - zookeeper
-      - kafka
-    depends_on:
-      - redis
-      - zookeeper
-      - kafka
 
   users:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
-    environment:
-      NODEID: "node-users"
-      SERVICES: users
-    links:
-      - redis
-      - zookeeper
-      - kafka
-      - mongodb
     depends_on:
-      - redis
-      - zookeeper
-      - kafka
       - mongodb
+    environment:
+      NODEID: 'node-users'
+      SERVICES: users
 
   inventory:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
-    environment:
-      NODEID: "node-inventory"
-      SERVICES: inventory
-    links:
-      - redis
-      - zookeeper
-      - kafka
-      - mongodb
     depends_on:
-      - redis
-      - zookeeper
       - kafka
       - mongodb
+    environment:
+      NODEID: 'node-inventory'
+      SERVICES: inventory
 
   orders:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
-    environment:
-      NODEID: "node-orders"
-      SERVICES: orders
-    links:
-      - redis
-      - zookeeper
-      - kafka
-      - mongodb
     depends_on:
-      - redis
-      - zookeeper
       - kafka
       - mongodb
+    environment:
+      NODEID: 'node-orders'
+      SERVICES: orders
 
   greeter:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
     environment:
-      NODEID: "node-greeter"
+      NODEID: 'node-greeter'
       SERVICES: greeter
-    links:
-      - redis
-      - zookeeper
-      - kafka
-    depends_on:
-      - redis
-      - zookeeper
-      - kafka
 
   slack:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
-    environment:
-      NODEID: "node-slack"
-      SERVICES: slack
-    links:
-      - redis
-      - zookeeper
-      - kafka
     depends_on:
-      - redis
-      - zookeeper
       - kafka
+    environment:
+      NODEID: 'node-slack'
+      SERVICES: slack
 
   emailer:
     build:
       context: .
     image: moleculer-microservices-spike
+    logging: *default-logging
     env_file: docker-compose.env
     environment:
-      NODEID: "node-emailer"
+      NODEID: 'node-emailer'
       SERVICES: emailer
-    links:
-      - redis
-      - zookeeper
-      - kafka
-    depends_on:
-      - redis
-      - zookeeper
-      - kafka
 
   redis:
     image: redis:alpine
+    logging: *default-logging
     hostname: redis
 
   mongodb:
@@ -179,78 +137,109 @@ services:
       - 27017:27017
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:4.1.0
+    image: confluentinc/cp-zookeeper:5.5.3
+    logging: *default-logging
     hostname: zookeeper
     container_name: zookeeper
+    ports:
+      - '2181:2181'
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-txn-logs:/var/lib/zookeeper/log
     environment:
       ZOOKEEPER_SERVER_ID: 1
-      ZOOKEEPER_CLIENT_PORT: "2181"
-      ZOOKEEPER_TICK_TIME: "2000"
-    # volumes:
-      # - zookeeper-data:/var/lib/zookeeper/data
-      # - zookeeper-txn-logs:/var/lib/zookeeper/log
-    ports:
-      - "2181:2181"
+      ZOOKEEPER_CLIENT_PORT: '2181'
+      ZOOKEEPER_TICK_TIME: '2000'
+      # https://issues.apache.org/jira/browse/ZOOKEEPER-3056
+      ZOOKEEPER_ZOOKEEPER_SNAPSHOT_TRUST_EMPTY: 'true'
+      # JMX configuration for accessing metrics
+      KAFKA_JMX_HOSTNAME: zookeeper
+      KAFKA_JMX_PORT: 39999
 
   kafka:
-    image: confluentinc/cp-kafka:4.1.0
+    image: confluentinc/cp-kafka:5.5.3
+    logging: *default-logging
     hostname: kafka
     container_name: kafka
     depends_on:
       - zookeeper
-    # volumes:
-      # - kafka-data:/var/lib/kafka/data
     ports:
-      - "9092:9092"
+      - '9092:9092'
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     environment:
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      # Internal listener for communication to brokers from within the
+      # Docker network, external listener for accessing from Docker host.
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.103:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_DELETE_TOPIC_ENABLE: "true"
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_JMX_PORT: 9999
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_DELETE_TOPIC_ENABLE: 'true'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_RETENTION_HOURS: 720
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+      KAFKA_TOOLS_LOG4J_LOGLEVEL: INFO
+      # JMX configuration for accessing metrics
+      KAFKA_JMX_HOSTNAME: kafka
+      KAFKA_JMX_PORT: 49999
+      CONFLUENT_METRICS_ENABLE: 'false'
+      CONFLUENT_SUPPORT_CUSTOMER_ID: anonymous
 
   # Jaeger container used for tracing metrics.
   # https://www.jaegertracing.io/
   # Access the dashboard at http://localhost:16686
   jaeger:
     image: jaegertracing/all-in-one:latest
+    logging: *default-logging
     hostname: jaeger
     ports:
-      - "5775:5775/udp"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-      - "16686:16686"
-      - "14268:14268"
-      - "9411:9411"
+      - '5775:5775/udp'
+      - '6831:6831/udp'
+      - '6832:6832/udp'
+      - '5778:5778'
+      - '16686:16686'
+      - '14268:14268'
+      - '9411:9411'
     environment:
       COLLECTOR_ZIPKIN_HTTP_PORT: 9411
 
   traefik:
-    image: traefik
-    command: --web --docker --docker.domain=docker.localhost --logLevel=INFO --docker.exposedbydefault=false
+    image: traefik:v2.3
+    logging: *default-logging
+    command:
+      - --api=true
+      - --api.insecure=true
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.http.address=:80
+      - --entrypoints.https.address=:443
+      - --accesslog=true
+      - --log=true
+      - --log.level=info
     ports:
-      - "3000:80"
-      - "3001:8080"
+      - '80:80'
+      - '443:443'
+      - '8080:8080'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /dev/null:/traefik.toml
 
+  # This container exposes an HTTP API to display information about requests it receives.
+  # nip.io is a DNS site that resolves the url to the ip address specified in the url.
+  # When accessing http://whoami-127-0-0-1.nip.io this will be resolved to 127.0.0.1
+  # and the Traefik service listening on port 80 on the host will receive the request.
+  # Traefik will route that request to this whoami service due to the whoami-127-0-0-1.nip.io
+  # host header rule.
   whoami:
-    image: emilevauge/whoami # A container that exposes an API to show its IP address
+    image: containous/whoami
+    logging: *default-logging
     labels:
-      - "traefik.enable=true"
-      - "traefik.frontend.rule=Host:whoami.docker.localhost"
-
-# Not mounting these persistent host volumes as this data only needs to be ephemeral for dev purposes
-# volumes:
-#   zookeeper-txn-logs:
-#     external: true
-#   zookeeper-data:
-#     external: true
-#   kafka-data:
-#     external: true
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.whoami.entrypoints=http'
+      - 'traefik.http.routers.whoami.rule=Host(`whoami-127-0-0-1.nip.io`)'
+      - 'traefik.http.services.whoami.loadbalancer.server.port=80'

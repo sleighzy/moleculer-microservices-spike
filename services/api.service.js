@@ -15,32 +15,32 @@ class ApiService extends Service {
       settings: {
         port: process.env.PORT || 3000,
 
-        routes: [{
-          path: '/api',
+        routes: [
+          {
+            path: '/api',
 
-          authorization: true,
+            authorization: true,
 
-          whitelist: [
-            '*',
-          ],
+            whitelist: ['*'],
 
-          aliases: {
-            'POST login': 'auth.login',
+            aliases: {
+              'POST login': 'auth.login',
 
-            // The user service aliases are defined explicitely v.s. 'REST' as the username is used
-            // for operations and not the id directly. These actions delegate to the underlying database
-            // mixin actions after the id for the user associated with the username has been retrieved.
-            'GET users': 'users.list',
-            'GET users/:username': 'users.getUser',
-            'POST users': 'users.createUser',
-            'PUT users/:username': 'users.updateUser',
-            'DELETE users/:username': 'users.deleteUser',
+              // The user service aliases are defined explicitely v.s. 'REST' as the username is used
+              // for operations and not the id directly. These actions delegate to the underlying database
+              // mixin actions after the id for the user associated with the username has been retrieved.
+              'GET users': 'users.list',
+              'GET users/:username': 'users.getUser',
+              'POST users': 'users.createUser',
+              'PUT users/:username': 'users.updateUser',
+              'DELETE users/:username': 'users.deleteUser',
 
-            'REST inventory': 'inventory',
+              'REST inventory': 'inventory',
 
-            'REST orders': 'orders',
+              'REST orders': 'orders',
+            },
           },
-        }],
+        ],
 
         assets: {
           folder: 'public',
@@ -66,7 +66,8 @@ class ApiService extends Service {
       .then((token) => {
         if (token) {
           // Verify JWT token
-          return ctx.call('auth.resolveToken', { token })
+          return ctx
+            .call('auth.resolveToken', { token })
             .then((user) => {
               if (user) {
                 this.logger.debug('Authenticated via JWT: ', user.username);
