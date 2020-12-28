@@ -27,7 +27,7 @@ class ApiService extends Service {
               'POST login': 'auth.login',
               'POST register': 'auth.register',
 
-              // The user service aliases are defined explicitely v.s. 'REST' as the username is used
+              // The user service aliases are defined explicitly vs 'REST' as the username is used
               // for operations and not the id directly. These actions delegate to the underlying database
               // mixin actions after the id for the user associated with the username has been retrieved.
               'GET users': 'users.list',
@@ -40,6 +40,9 @@ class ApiService extends Service {
 
               'REST orders': 'orders',
             },
+
+            // Allow services to directly declare their routes
+            autoAliases: true,
           },
         ],
 
