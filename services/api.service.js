@@ -21,7 +21,7 @@ class ApiService extends Service {
 
             authorization: true,
 
-            whitelist: ['*'],
+            whitelist: ['**'],
 
             aliases: {
               'POST login': 'auth.login',
