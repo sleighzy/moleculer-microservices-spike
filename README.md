@@ -81,7 +81,76 @@ Run the command below to startup all services.
 docker-compose up -d
 ```
 
+## Authenticated API Calls
+
+Some API calls require that the request be made using an authenticated JWT. This
+can be achieved by the following:
+
+- register a user so that a new user account is created
+- login as the new user
+- take the generated JWT token from the login response and add in the
+  `Authorization` header in subsequent API calls
+
+The commands below use the fantastic [HTTPie] client, an excellent replacement
+for `curl`.
+
+### Registering a new user
+
+The `test/requests/register-user.json` file contains the json payload describing
+the new user account. The command below can be run to post this to the
+`/api/register` endpoint.
+
+```bash
+http POST http://api-127-0-0-1.nip.io/api/register < test/requests/register-user.json
+```
+
+**WARNING:** When the account is created an event will be fired to a Kafka
+`users` topic. This is my environment, unlike the other services, returns a
+broker error that a leader cannot be found for the very first account that gets
+created. The user account is however successfully created. All accounts created
+after this do not generate errors, and the user creation events are successfully
+published to the Kafka topic.
+
+### Login the user
+
+The command below can be run to log in the new user. The response will contain a
+`token` field containing a valid authenticated JWT.
+
+```bash
+http http://api-127-0-0-1.nip.io/api/login username='bob' password='secret-password'
+
+{
+    "_id": "5fe97aac26c85f0014d789c7",
+    "email": "bob@example.com",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.....",
+    "username": "bob"
+}
+```
+
+### Authenticated API call
+
+The below command will retrieve the information for the `bob` user account. The
+`/api/users/:username` endpoint requires a valid JWT to be provided in the call.
+The JWT previously obtained when logging in should be added in the
+`Authorization` header with a value of `Bearer <jwt>`.
+
+```bash
+http http://api-127-0-0-1.nip.io/api/users/bob \
+  Authorization:'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.....'
+
+{
+    "__v": 0,
+    "_id": "5fe97aac26c85f0014d789c7",
+    "created": "2020-12-28T06:26:52.631Z",
+    "email": "bob@example.com",
+    "password": "$2b$10$/XSiWYRmwSEP..koLhmx3eCGGm2JB8Kghi9K9Na513O8vSX5OcRH.",
+    "updated": "2020-12-28T06:26:52.631Z",
+    "username": "bob"
+}
+```
+
 [confluent]: https://www.confluent.io/
+[httpie]: https://httpie.io/
 [jaeger]: https://www.jaegertracing.io/
 [kafka]: https://kafka.apache.org/
 [moleculer]: https://moleculer.services/
