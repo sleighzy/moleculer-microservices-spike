@@ -149,11 +149,69 @@ http http://api-127-0-0-1.nip.io/api/users/bob \
 }
 ```
 
+## Slack Messaging Service
+
+The `Slack` service provides an API for sending messages to a [Slack channel]
+using either HTTP POST requests, or publishing messages to a Kafka topic.
+
+See the Slack documentation on creating an account and obtaining a webhook url.
+The webhook url needs to set as the value for the `SLACK_WEBHOOK_URI`
+environment variable.
+
+### Sending messages via HTTP POST
+
+The below command uses the [HTTPie] client to post a message to the Slack
+service that will then be delivered to your Slack channel.
+
+```bash
+http POST http://api-127-0-0-1.nip.io/api/slack message='Hello from the Slack service using HTTP POST'
+```
+
+### Sending messages via Kafka
+
+The Slack service runs a Kafka consumer that connects to the Kafka bootstrap
+server configured in the `SLACK_BOOTSTRAP_SERVER` environment variable. This
+consumes messages from the Kafka topic, configured for the `SLACK_KAFKA_TOPIC`
+environment variable, and delivers them to your Slack channel.
+
+The example below uses the awesome [kafkacat] command-line utility for producing
+and consuming messages (plus more) to/from Kafka. See further below as to the
+usage of `localhost:9092`.
+
+```bash
+cat 'slack message via Kafka' | kafkacat -b localhost:9092 -t slack-notifications
+```
+
+**NOTE:** The `docker-compose.yml` file for the Docker deployment contains the
+following environment variables for the `kafka` service:
+
+```yaml
+KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+# Internal listener for communication to brokers from within the
+# Docker network, external listener for accessing from Docker host.
+KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.103:9092
+```
+
+The `INTERNAL` listener, `kafka:29092`, is used by the services defined with the
+Docker Compose file, e.g. the Slack service and its `SLACK_BOOTSTRAP_SERVER`
+environment variable value. This is the address that is contactable by all
+containers in this network. The `EXTERNAL` listener is the one published for you
+to connect to from your local machine. The ip address for the `EXTERNAL`
+listener should be updated to match your local machine ip. You can then connect
+to the Kafka container on `localhost:9092`, the bootstrap server will
+subsequently direct the Kafka producer to send messages to your machine's ip
+address. Read the Confluent blog post [Kafka Listeners - Explained] for a good
+explanation, diagrams, and examples of this.
+
 [confluent]: https://www.confluent.io/
 [httpie]: https://httpie.io/
 [jaeger]: https://www.jaegertracing.io/
 [kafka]: https://kafka.apache.org/
+[kafkacat]: https://github.com/edenhill/kafkacat
+[kafka listeners - explained]:
+  https://www.confluent.io/blog/kafka-listeners-explained/
 [moleculer]: https://moleculer.services/
 [mongodb]: https://www.mongodb.com/
 [redis]: https://redis.io/
+[slack channel]: https://slack.com/
 [traefik]: https://traefik.io/traefik/

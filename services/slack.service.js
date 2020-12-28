@@ -20,13 +20,14 @@ class SlackService extends Service {
         username: process.env.SLACK_USERNAME || 'slack_service',
         bootstrapServer: process.env.SLACK_BOOTSTRAP_SERVER || 'localhost:9092',
         kafkaTopic: process.env.SLACK_KAFKA_TOPIC || 'slack-notifications',
+
+        // Base request route path
+        rest: 'slack/',
       },
 
       actions: {
-        send: {
-          params: {
-            message: 'string',
-          },
+        create: {
+          rest: 'POST /',
           handler: this.send,
         },
       },
@@ -143,9 +144,9 @@ class SlackService extends Service {
     );
 
     this.consumer.on('message', (message) => {
-      // csonst buf = new Buffer(message.value, 'binary'), // Read string into a buffer.
+      // const buf = new Buffer(message.value, 'binary'), // Read string into a buffer.
       // decodedMessage = type.fromBuffer(buf.slice(0)); // Skip prefix.
-      // this.logger.info(decodedMessage);
+      // this.logger.debug(decodedMessage);
 
       this.logger.debug(message);
 
