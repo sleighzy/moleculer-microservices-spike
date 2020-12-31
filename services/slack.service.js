@@ -1,7 +1,7 @@
 const { Service } = require('moleculer');
 const { MoleculerError } = require('moleculer').Errors;
-const Kafka = require('kafka-node');
 const Slack = require('slack-node');
+const KafkaService = require('../mixins/kafka.mixin');
 
 class SlackService extends Service {
   constructor(broker) {
@@ -9,6 +9,8 @@ class SlackService extends Service {
 
     this.parseServiceSchema({
       name: 'slack',
+
+      mixins: [KafkaService],
 
       meta: {
         scalable: true,
@@ -28,7 +30,7 @@ class SlackService extends Service {
       actions: {
         create: {
           rest: 'POST /',
-          handler: this.send,
+          handler: this.postChatMessage,
         },
       },
 
@@ -44,12 +46,14 @@ class SlackService extends Service {
 
   // Action handler
   send(ctx) {
-    this.sendMessage(ctx.params.message);
+    this.postChatMessage(ctx.params.message);
   }
 
   // Private method
-  sendMessage(message) {
-    this.logger.debug(`Sending message '${message}'`);
+  postChatMessage(message) {
+    this.logger.debug(
+      `Posting message '${message}' to Slack channel ${this.settings.channel}`,
+    );
 
     this.slack.webhook(
       {
@@ -115,57 +119,28 @@ class SlackService extends Service {
     this.slack = new Slack();
     this.slack.setWebhook(this.settings.webhookUri);
 
-    const kafkaOptions = {
-      kafkaHost: this.settings.bootstrapServer, // connect directly to kafka broker (instantiates a KafkaClient)
-      batch: undefined, // put client batch settings if you need them (see Client)
-      // ssl: true, // optional (defaults to false) or tls options hash
-      groupId: 'kafka-node-slack',
-      sessionTimeout: 15000,
-      // An array of partition assignment protocols ordered by preference.
-      // 'roundrobin' or 'range' string for built ins (see below to pass in custom assignment protocol)
-      protocol: ['roundrobin'],
-
-      // Set encoding to 'buffer' for binary data.
-      // encoding: 'buffer',
-
-      // Offsets to use for new groups other options could be 'earliest' or 'none' (none will emit an error if no offsets were saved)
-      // equivalent to Java client's auto.offset.reset
-      fromOffset: 'latest', // default
-
-      // how to recover from OutOfRangeOffset error (where save offset is past server retention) accepts same value as fromOffset
-      outOfRangeOffset: 'earliest', // default
-      migrateHLC: false, // for details please see Migration section below
-      migrateRolling: true,
-    };
-
-    this.consumer = new Kafka.ConsumerGroup(
-      kafkaOptions,
-      this.settings.kafkaTopic,
-    );
-
-    this.consumer.on('message', (message) => {
-      // const buf = new Buffer(message.value, 'binary'), // Read string into a buffer.
-      // decodedMessage = type.fromBuffer(buf.slice(0)); // Skip prefix.
-      // this.logger.debug(decodedMessage);
-
-      this.logger.debug(message);
-
-      return this.sendMessage(message.value);
-    });
-
-    this.consumer.on('error', (err) =>
-      this.Promise.reject(
-        new MoleculerError(
-          `${err.message} ${err.detail}`,
-          500,
-          'CONSUMER_MESSAGE_ERROR',
-        ),
-      ),
-    );
-
-    process.on('SIGINT', () => this.consumer.close(true));
-
     this.logger.debug(this.settings);
+
+    // Start the Kafka consumer to read messages from the topic
+    // to be sent to the Slack channel
+    this.startKafkaConsumer(
+      this.settings.bootstrapServer,
+      this.settings.kafkaTopic,
+      (error, message) => {
+        if (error) {
+          this.Promise.reject(
+            new MoleculerError(
+              `${error.message} ${error.detail}`,
+              500,
+              'CONSUMER_MESSAGE_ERROR',
+            ),
+          );
+        }
+
+        this.postChatMessage(message.value);
+      },
+    );
+
     this.logger.debug('Slack service started.');
 
     return this.Promise.resolve();

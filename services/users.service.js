@@ -1,11 +1,11 @@
 const { Service } = require('moleculer');
 const { MoleculerError } = require('moleculer').Errors;
-const { HighLevelProducer, KeyedMessage, KafkaClient } = require('kafka-node');
 const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const KafkaService = require('../mixins/kafka.mixin');
 
 class UsersService extends Service {
   constructor(broker) {
@@ -17,7 +17,7 @@ class UsersService extends Service {
         scalable: true,
       },
 
-      mixins: [DbService],
+      mixins: [DbService, KafkaService],
 
       adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'username', 'email'],
@@ -208,32 +208,23 @@ class UsersService extends Service {
   }
 
   sendEvent(user, eventType) {
-    const data = user;
-    data.eventType = eventType;
-    const payload = this.createPayload(data);
     return new this.Promise((resolve, reject) => {
-      this.producer.send(payload, (error, result) => {
-        this.logger.debug('Sent payload to Kafka:', JSON.stringify(payload));
-        if (error) {
-          reject(error);
-        } else {
-          this.logger.debug('Result:', result);
-          resolve(result);
-        }
-      });
-    });
-  }
+      const data = user;
+      data.eventType = eventType;
 
-  createPayload(user) {
-    const message = new KeyedMessage(user.username, JSON.stringify(user));
-    return [
-      {
-        topic: this.settings.usersTopic,
-        messages: [message],
-        attributes: 1, // Use GZip compression for the payload.
-        timestamp: Date.now(),
-      },
-    ];
+      this.sendMessage(
+        this.settings.usersTopic,
+        { key: user.username, value: JSON.stringify(data) },
+        (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            this.logger.debug('Result:', result);
+            resolve(result);
+          }
+        },
+      );
+    });
   }
 
   // Event handlers
@@ -243,23 +234,9 @@ class UsersService extends Service {
   }
 
   serviceStarted() {
-    const client = new KafkaClient({
-      kafkaHost: this.settings.bootstrapServer,
-    });
-
-    // For this demo we just log client errors to the console.
-    client.on('error', (error) => this.logger.error(error));
-
-    this.producer = new HighLevelProducer(client, {
-      // Configuration for when to consider a message as acknowledged, default 1
-      requireAcks: 1,
-      // The amount of time in milliseconds to wait for all acks before considered, default 100ms
-      ackTimeoutMs: 100,
-      // Partitioner type (default = 0, random = 1, cyclic = 2, keyed = 3, custom = 4), default 2
-      partitionerType: 3,
-    });
-
-    this.producer.on('error', (error) => this.logger.error(error));
+    this.startKafkaProducer(this.settings.bootstrapServer, (error) =>
+      this.logger.error(error),
+    );
 
     this.logger.debug('Users service started.');
   }
