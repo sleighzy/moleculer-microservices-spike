@@ -149,6 +149,41 @@ http http://api-127-0-0-1.nip.io/api/users/bob \
 }
 ```
 
+## Inventory Service
+
+The Inventory service maintains a list of available products, their price, and
+the available quantity. This is stored within the MongoDB database. This service
+uses event sourcing via a Kafka topic to update stock in the database based on
+events consumed from the `inventory` topic. When the HTTP API is invoked with a
+product item to add to the inventory an event is sent to the Kafka topic. This
+event is then consumed by the service again and updates the database with this
+item.
+
+Run the below command to use the [kafkacat] utility to watch the `inventory`
+topic.
+
+```sh
+kafkacat -C -b localhost:9092 -t inventory
+```
+
+Run the below command using the [httpie] client to call the Inventory `create`
+handler via the [Moleculer API Gateway].
+
+```sh
+echo '{ "item": { "product": "Raspberry Pi 4b", "price": 145.00 } }' | http POST http://api-127-0-0-1.nip.io/api/inventory
+```
+
+This should output the below message in the Kafkacat terminal for the event that
+was published from the API call. This event will be used to create the database
+insertion of this item.
+
+```json
+{
+  "eventType": "ItemAdded",
+  "item": { "product": "Raspberry Pi", "price": 145, "state": "Available" }
+}
+```
+
 ## Slack Messaging Service
 
 The `Slack` service provides an API for sending messages to a [Slack channel]
@@ -179,11 +214,13 @@ and consuming messages (plus more) to/from Kafka. See further below as to the
 usage of `localhost:9092`.
 
 ```bash
-cat 'slack message via Kafka' | kafkacat -b localhost:9092 -t slack-notifications
+echo 'slack message via Kafka' | kafkacat -P -b localhost:9092 -t slack-notifications
 ```
 
-**NOTE:** The `docker-compose.yml` file for the Docker deployment contains the
-following environment variables for the `kafka` service:
+## Kafka Service and Kafka Broker Listeners
+
+The `docker-compose.yml` file for the Docker deployment contains the following
+environment variables for the `kafka` service:
 
 ```yaml
 KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
@@ -192,16 +229,17 @@ KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
 KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.103:9092
 ```
 
-The `INTERNAL` listener, `kafka:29092`, is used by the services defined with the
-Docker Compose file, e.g. the Slack service and its `SLACK_BOOTSTRAP_SERVER`
+The `INTERNAL` listener, `kafka:29092`, is used by the services defined within
+the Docker Compose file, e.g. the Slack service and its `SLACK_BOOTSTRAP_SERVER`
 environment variable value. This is the address that is contactable by all
 containers in this network. The `EXTERNAL` listener is the one published for you
 to connect to from your local machine. The ip address for the `EXTERNAL`
 listener should be updated to match your local machine ip. You can then connect
 to the Kafka container on `localhost:9092`, the bootstrap server will
 subsequently direct the Kafka producer to send messages to your machine's ip
-address. Read the Confluent blog post [Kafka Listeners - Explained] for a good
-explanation, diagrams, and examples of this.
+address, which then get forwarded to the actual Kafka broker via the port
+binding in the Docker Compose file. Read the Confluent blog post [Kafka
+Listeners - Explained] for a good explanation, diagrams, and examples of this.
 
 [confluent]: https://www.confluent.io/
 [httpie]: https://httpie.io/
@@ -211,6 +249,7 @@ explanation, diagrams, and examples of this.
 [kafka listeners - explained]:
   https://www.confluent.io/blog/kafka-listeners-explained/
 [moleculer]: https://moleculer.services/
+[moleculer api gateway]: https://moleculer.services/docs/0.14/moleculer-web.html
 [mongodb]: https://www.mongodb.com/
 [redis]: https://redis.io/
 [slack channel]: https://slack.com/
