@@ -192,7 +192,7 @@ class InventoryService extends Service {
             reject(error);
           } else {
             this.logger.debug('Result:', result);
-            resolve(result);
+            resolve({ eventType, item });
           }
         },
       );

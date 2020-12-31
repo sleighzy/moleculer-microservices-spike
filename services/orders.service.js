@@ -161,13 +161,13 @@ class OrdersService extends Service {
 
       this.sendMessage(
         this.settings.ordersTopic,
-        { key: order.product, value: JSON.stringify({ order, eventType }) },
+        { key: order.product, value: JSON.stringify({ eventType, order }) },
         (error, result) => {
           if (error) {
             reject(error);
           } else {
             this.logger.debug('Result:', result);
-            resolve(result);
+            resolve({ eventType, order });
           }
         },
       );
