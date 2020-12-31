@@ -92,6 +92,9 @@ class InventoryService extends Service {
       .then(() => this.getQuantity(ctx, product, true))
       .then((available) => {
         if (quantity > available) {
+          // Emit an event that there is no further stock available
+          this.broker.emit('inventory.insufficientStock', { product });
+
           return this.Promise.reject(
             new MoleculerError(
               `Not enough items available in inventory for product '${product}'.`,
