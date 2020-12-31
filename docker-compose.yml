@@ -32,7 +32,7 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.api.entrypoints=http'
-      - 'traefik.http.routers.api.rule=Host(`api-127-0-0-1.nip.io`)'
+      - 'traefik.http.routers.api.rule=Host(`moleculer-127-0-0-1.nip.io`)'
       - 'traefik.http.services.api.loadbalancer.server.port=4000'
 
   auth:
