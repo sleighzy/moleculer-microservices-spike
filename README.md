@@ -101,7 +101,7 @@ the new user account. The command below can be run to post this to the
 `/api/register` endpoint.
 
 ```bash
-http POST http://api-127-0-0-1.nip.io/api/register < test/requests/register-user.json
+http POST http://moleculer-127-0-0-1.nip.io/api/register < test/requests/register-user.json
 ```
 
 **WARNING:** When the account is created an event will be fired to a Kafka
@@ -117,7 +117,7 @@ The command below can be run to log in the new user. The response will contain a
 `token` field containing a valid authenticated JWT.
 
 ```bash
-http http://api-127-0-0-1.nip.io/api/login username='bob' password='secret-password'
+http http://moleculer-127-0-0-1.nip.io/api/login username='bob' password='secret-password'
 
 {
     "_id": "5fe97aac26c85f0014d789c7",
@@ -135,7 +135,7 @@ The JWT previously obtained when logging in should be added in the
 `Authorization` header with a value of `Bearer <jwt>`.
 
 ```bash
-http http://api-127-0-0-1.nip.io/api/users/bob \
+http http://moleculer-127-0-0-1.nip.io/api/users/bob \
   Authorization:'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.....'
 
 {
@@ -170,7 +170,7 @@ Run the below command using the [httpie] client to call the Inventory `create`
 handler via the [Moleculer API Gateway].
 
 ```sh
-echo '{ "item": { "product": "Raspberry Pi 4b", "price": 145.00 } }' | http POST http://api-127-0-0-1.nip.io/api/inventory
+echo '{ "item": { "product": "Raspberry Pi 4b", "price": 145.00 } }' | http POST http://moleculer-127-0-0-1.nip.io/api/inventory
 ```
 
 This should output the below message in the Kafkacat terminal for the event that
@@ -199,7 +199,7 @@ The below command uses the [HTTPie] client to post a message to the Slack
 service that will then be delivered to your Slack channel.
 
 ```bash
-http POST http://api-127-0-0-1.nip.io/api/slack message='Hello from the Slack service using HTTP POST'
+http POST http://moleculer-127-0-0-1.nip.io/api/slack message='Hello from the Slack service using HTTP POST'
 ```
 
 ### Sending messages via Kafka
