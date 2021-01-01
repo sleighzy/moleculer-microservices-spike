@@ -30,12 +30,16 @@ class SlackService extends Service {
       actions: {
         create: {
           rest: 'POST /',
-          handler: this.postChatMessage,
+          handler: this.send,
         },
       },
 
       events: {
-        // No events
+        'inventory.insufficientStock': {
+          handler(ctx) {
+            this.postChatMessage(`Insufficient Stock: ${ctx.params.product}`);
+          },
+        },
       },
 
       created: this.serviceCreated,
@@ -49,7 +53,6 @@ class SlackService extends Service {
     this.postChatMessage(ctx.params.message);
   }
 
-  // Private method
   postChatMessage(message) {
     this.logger.debug(
       `Posting message '${message}' to Slack channel ${this.settings.channel}`,
