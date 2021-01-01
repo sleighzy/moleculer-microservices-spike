@@ -184,6 +184,27 @@ insertion of this item.
 }
 ```
 
+## Emailer Service
+
+The `Emailer` service sends email messages for order events consumed from a
+Kafka topic.
+
+This deployment uses the online fake SMTP service [Ethereal] for testing the
+sending of emails. Create an account on that site and then set the `SMTP_USER`
+and `SMTP_PASS` to match the account details you are provided.
+
+Run the below command to use the [kafkacat] utility to publish an order event.
+
+```sh
+echo '{ "eventType": "OrderCreated", "order": { "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }' \
+  | kafkacat \
+  -P \
+  -b localhost:9092 \
+  -t orders
+```
+
+An email message will be created and viewable in your Ethereal account.
+
 ## Slack Messaging Service
 
 The `Slack` service provides an API for sending messages to a [Slack channel]
@@ -242,6 +263,7 @@ binding in the Docker Compose file. Read the Confluent blog post [Kafka
 Listeners - Explained] for a good explanation, diagrams, and examples of this.
 
 [confluent]: https://www.confluent.io/
+[ethereal]: https://ethereal.email/
 [httpie]: https://httpie.io/
 [jaeger]: https://www.jaegertracing.io/
 [kafka]: https://kafka.apache.org/
