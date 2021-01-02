@@ -24,6 +24,7 @@ class UsersService extends Service {
       model: mongoose.model(
         'User',
         mongoose.Schema({
+          customerId: { type: Number },
           username: { type: String },
           password: { type: String },
           email: { type: String },
@@ -43,8 +44,18 @@ class UsersService extends Service {
           auth: 'required',
         },
         getUser: {
+          params: {
+            username: 'string',
+          },
           auth: 'required',
           handler: this.getUser,
+        },
+        getUserByCustomerId: {
+          params: {
+            customerId: 'number',
+          },
+          auth: 'required',
+          handler: this.getUserByCustomerId,
         },
         createUser: {
           auth: 'required',
@@ -72,6 +83,9 @@ class UsersService extends Service {
           handler: this.updateUser,
         },
         deleteUser: {
+          params: {
+            username: 'string',
+          },
           auth: 'required',
           handler: this.deleteUser,
         },
@@ -98,7 +112,16 @@ class UsersService extends Service {
   async getUser(ctx) {
     const { username } = ctx.params;
     this.logger.debug('getUser:', username);
-    return this.retrieveUser(ctx, username).then((user) =>
+    return this.retrieveUser(ctx, { username }).then((user) =>
+      // eslint-disable-next-line no-underscore-dangle
+      ctx.call('users.get', { id: user._id }),
+    );
+  }
+
+  async getUserByCustomerId(ctx) {
+    const { customerId } = ctx.params;
+    this.logger.debug('getUserByCustomerId:', customerId);
+    return this.retrieveUser(ctx, { customerId }).then((user) =>
       // eslint-disable-next-line no-underscore-dangle
       ctx.call('users.get', { id: user._id }),
     );
@@ -111,13 +134,14 @@ class UsersService extends Service {
     const users = await ctx.call('users.find', { query: { username } });
     if (users.length) {
       return Promise.reject(
-        new MoleculerError('User already exists.', 422, '', [
+        new MoleculerError('User already exists.', 409, 'ALREADY_EXISTS', [
           { field: 'username', message: 'already exists' },
         ]),
       );
     }
 
     const userEntity = {
+      customerId: Date.now(),
       username,
       email,
       password: bcrypt.hashSync(password, 10),
@@ -132,9 +156,12 @@ class UsersService extends Service {
     const { username, email } = ctx.params.user;
     if (username !== ctx.params.username) {
       return Promise.reject(
-        new MoleculerError('User in request body does not match.', 422, '', [
-          { field: 'username', message: 'does not match' },
-        ]),
+        new MoleculerError(
+          'User in request body does not match.',
+          400,
+          'DOES_NOT_MATCH',
+          [{ field: 'username', message: 'does not match' }],
+        ),
       );
     }
     this.logger.debug('updateUser', username);
@@ -155,15 +182,15 @@ class UsersService extends Service {
 
   // Private methods.
 
-  async retrieveUser(ctx, username) {
-    return ctx.call('users.find', { query: { username } }).then((users) => {
+  async retrieveUser(ctx, criteria) {
+    return ctx.call('users.find', { query: criteria }).then((users) => {
       if (!users.length) {
         return this.Promise.reject(
           new MoleculerError(
-            `User not found for username '${username}'`,
-            422,
-            '',
-            [{ field: 'username', message: 'is not found' }],
+            `User not found for criteria '${criteria}'`,
+            404,
+            'NOT_FOUND',
+            [{ field: `${criteria}`, message: 'is not found' }],
           ),
         );
       }

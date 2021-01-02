@@ -5,6 +5,13 @@
 This project is a number of microservices built in Node.js using the [Moleculer]
 microservices framework.
 
+The inspiration for this was to learn more about the Moleculer framework and
+build a proof-of-concept based on the Confluent [Building a Microservices
+Ecosystem with Kafka Streams and KSQL] blog. This proof-of-concept is not using
+Kafka Streams or KSQL, but the services are built using event sourcing (with
+Kafka as the messaging platform) with additional patterns and incorporating many
+of the Moleculer features as an example.
+
 This deployment uses Docker containers and consists of the following components:
 
 - [Moleculer] is a the microservices framework for Node.js
@@ -187,16 +194,22 @@ insertion of this item.
 ## Emailer Service
 
 The `Emailer` service sends email messages for order events consumed from a
-Kafka topic.
+Kafka topic. The `OrderCreated` event contains the `customerId` within the
+`order` object, this is used to retrieve the user account associated with that
+identifier and populate the email address.
 
 This deployment uses the online fake SMTP service [Ethereal] for testing the
 sending of emails. Create an account on that site and then set the `SMTP_USER`
 and `SMTP_PASS` to match the account details you are provided.
 
 Run the below command to use the [kafkacat] utility to publish an order event.
+In the example below the customer id of `12345` should be updated with the value
+from your user account. You can get the list of users and their customer
+identifier by making an authenticated API call to the
+<http://moleculer-127-0-0-1.nip.io/api/users> endpoint.
 
 ```sh
-echo '{ "eventType": "OrderCreated", "order": { "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }' \
+echo '{ "eventType": "OrderCreated", "order": { "customerId": 12345, "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }' \
   | kafkacat \
   -P \
   -b localhost:9092 \
@@ -262,6 +275,8 @@ address, which then get forwarded to the actual Kafka broker via the port
 binding in the Docker Compose file. Read the Confluent blog post [Kafka
 Listeners - Explained] for a good explanation, diagrams, and examples of this.
 
+[building a microservices ecosystem with kafka streams and ksql]:
+  https://www.confluent.io/blog/building-a-microservices-ecosystem-with-kafka-streams-and-ksql/
 [confluent]: https://www.confluent.io/
 [ethereal]: https://ethereal.email/
 [httpie]: https://httpie.io/
