@@ -84,16 +84,19 @@ class EmailerService extends Service {
     });
   }
 
-  processEvent(event) {
+  async processEvent(event) {
     if (event.eventType === 'OrderCreated') {
       this.logger.debug(event);
-      const { product, quantity } = event.order;
+      const { customerId, product, quantity } = event.order;
+      const user = await this.broker.call('users.getUserByCustomerId', {
+        customerId,
+      });
       this.sendEmail({
         from: '"Customer Services" <noreply@example.com>',
-        to: 'bob@example.com',
+        to: user.email,
         subject: `Order: ${product}`,
-        text: `Hi Bob, your order for ${product} is currently being processed.`,
-        html: `Hi Bob,<p>Your order for the below product(s) is currently being processed:<ul><li>${product} <i>(Quantity: ${quantity})</i></li></ul></p>`,
+        text: `Hi ${user.username}, your order for ${product} is currently being processed.`,
+        html: `Hi ${user.username},<p>Your order for the below product(s) is currently being processed:<ul><li>${product} <i>(Quantity: ${quantity})</i></li></ul></p>`,
       });
     }
   }
