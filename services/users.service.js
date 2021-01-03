@@ -34,30 +34,36 @@ class UsersService extends Service {
       ),
 
       settings: {
+        // Base request route path
+        rest: 'users/',
+
         jwtSecret: process.env.JWT_SECRET || 'jwt-secret-string',
-        bootstrapServer: process.env.USERS_BOOTSTRAP_SERVER || 'localhost:9092',
-        usersTopic: process.env.USERS_TOPIC || 'users',
+        kafka: {
+          bootstrapServer:
+            process.env.USERS_BOOTSTRAP_SERVER || 'localhost:9092',
+          usersTopic: process.env.USERS_TOPIC || 'users',
+        },
       },
 
+      // The user service aliases are defined explicitly vs generic 'REST' as the username
+      // is used for operations and not the actual database id directly. These actions
+      // delegate to the underlying database mixin actions after the id for the user associated
+      // with the username has been resolved.
       actions: {
         list: {
+          rest: 'GET /',
           auth: 'required',
         },
         getUser: {
+          rest: 'GET /:username',
           params: {
             username: 'string',
           },
           auth: 'required',
           handler: this.getUser,
         },
-        getUserByCustomerId: {
-          params: {
-            customerId: 'number',
-          },
-          auth: 'required',
-          handler: this.getUserByCustomerId,
-        },
         createUser: {
+          rest: 'POST /',
           auth: 'required',
           user: {
             type: 'object',
@@ -70,6 +76,7 @@ class UsersService extends Service {
           handler: this.createUser,
         },
         updateUser: {
+          rest: 'PUT /:username',
           auth: 'required',
           params: {
             user: {
@@ -83,11 +90,22 @@ class UsersService extends Service {
           handler: this.updateUser,
         },
         deleteUser: {
+          rest: 'DELETE /:username',
           params: {
             username: 'string',
           },
           auth: 'required',
           handler: this.deleteUser,
+        },
+
+        // This is not exposed as a REST endpoint but as an action that
+        // can be called by the brokers
+        getUserByCustomerId: {
+          params: {
+            customerId: 'number',
+          },
+          auth: 'required',
+          handler: this.getUserByCustomerId,
         },
       },
 
@@ -240,7 +258,7 @@ class UsersService extends Service {
       data.eventType = eventType;
 
       this.sendMessage(
-        this.settings.usersTopic,
+        this.settings.kafka.usersTopic,
         { key: user.username, value: JSON.stringify(data) },
         (error, result) => {
           if (error) {
@@ -261,7 +279,7 @@ class UsersService extends Service {
   }
 
   serviceStarted() {
-    this.startKafkaProducer(this.settings.bootstrapServer, (error) =>
+    this.startKafkaProducer(this.settings.kafka.bootstrapServer, (error) =>
       this.logger.error(error),
     );
 
