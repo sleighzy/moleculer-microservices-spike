@@ -120,7 +120,7 @@ class OrdersService extends Service {
   /**
    * Function to consume order events from a Kafka topic and process them.
    *
-   * @param {Object} event event containing event tpye and order information.
+   * @param {Object} event event containing event type and order information.
    * @returns {Promise}
    */
   processEvent(event) {
