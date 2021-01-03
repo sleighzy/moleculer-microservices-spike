@@ -88,6 +88,15 @@ Run the command below to startup all services.
 docker-compose up -d
 ```
 
+## Moleculer Web Console
+
+Navigate to the Moleculer Web Console to view nodes, services, and make API
+calls. Click the _Execute_ button on the _Authentication_ page to login and
+generate an auth token. The token will be automatically added in the
+`Authorization` header when calling APIs from other pages in the web console.
+
+<http://moleculer-127-0-0-1.nip.io/>
+
 ## Authenticated API Calls
 
 Some API calls require that the request be made using an authenticated JWT. This
@@ -108,7 +117,7 @@ the new user account. The command below can be run to post this to the
 `/api/register` endpoint.
 
 ```bash
-http POST http://moleculer-127-0-0-1.nip.io/api/register < test/requests/register-user.json
+http POST http://moleculer-127-0-0-1.nip.io/api/auth/register < test/requests/register-user.json
 ```
 
 **WARNING:** When the account is created an event will be fired to a Kafka
@@ -124,7 +133,7 @@ The command below can be run to log in the new user. The response will contain a
 `token` field containing a valid authenticated JWT.
 
 ```bash
-http http://moleculer-127-0-0-1.nip.io/api/login username='bob' password='secret-password'
+http http://moleculer-127-0-0-1.nip.io/api/auth/login username='bob' password='secret-password'
 
 {
     "_id": "5fe97aac26c85f0014d789c7",

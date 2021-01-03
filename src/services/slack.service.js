@@ -30,6 +30,9 @@ class SlackService extends Service {
       actions: {
         create: {
           rest: 'POST /',
+          params: {
+            message: 'string',
+          },
           handler: this.send,
         },
       },

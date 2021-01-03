@@ -32,11 +32,12 @@ class ApiService extends Service {
               'slack.create',
               'inventory.*',
               'orders.*',
+              '$node.*',
             ],
 
             aliases: {
-              'POST login': 'auth.login',
-              'POST register': 'auth.register',
+              'POST auth/login': 'auth.login',
+              'POST auth/register': 'auth.register',
 
               'REST inventory': 'inventory',
 
@@ -47,6 +48,16 @@ class ApiService extends Service {
             autoAliases: true,
             // Only expose routes that have had aliases defined
             mappingPolicy: 'restrict',
+          },
+          {
+            path: '/system',
+
+            whitelist: ['$node.*'],
+
+            // Allow services to directly declare their routes
+            autoAliases: true,
+            // Expose all routes, even with no aliases
+            mappingPolicy: 'all',
           },
         ],
 

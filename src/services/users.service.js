@@ -56,21 +56,23 @@ class UsersService extends Service {
         },
         getUser: {
           rest: 'GET /:username',
+          auth: 'required',
           params: {
             username: 'string',
           },
-          auth: 'required',
           handler: this.getUser,
         },
         createUser: {
           rest: 'POST /',
           auth: 'required',
-          user: {
-            type: 'object',
-            props: {
-              username: 'string',
-              email: 'string',
-              password: 'string',
+          params: {
+            user: {
+              type: 'object',
+              props: {
+                username: 'string',
+                email: 'string',
+                password: 'string',
+              },
             },
           },
           handler: this.createUser,
@@ -91,10 +93,10 @@ class UsersService extends Service {
         },
         deleteUser: {
           rest: 'DELETE /:username',
+          auth: 'required',
           params: {
             username: 'string',
           },
-          auth: 'required',
           handler: this.deleteUser,
         },
 
@@ -104,7 +106,6 @@ class UsersService extends Service {
           params: {
             customerId: 'number',
           },
-          auth: 'required',
           handler: this.getUserByCustomerId,
         },
       },
@@ -183,7 +184,7 @@ class UsersService extends Service {
       );
     }
     this.logger.debug('updateUser', username);
-    return this.retrieveUser(ctx, username).then((user) =>
+    return this.retrieveUser(ctx, { username }).then((user) =>
       // eslint-disable-next-line no-underscore-dangle
       ctx.call('users.update', { id: user._id, email, updated: Date.now() }),
     );
@@ -192,7 +193,7 @@ class UsersService extends Service {
   async deleteUser(ctx) {
     const { username } = ctx.params;
     this.logger.debug('deleteUser:', username);
-    return this.retrieveUser(ctx, username).then((user) =>
+    return this.retrieveUser(ctx, { username }).then((user) =>
       // eslint-disable-next-line no-underscore-dangle
       ctx.call('users.remove', { id: user._id }),
     );
@@ -205,10 +206,10 @@ class UsersService extends Service {
       if (!users.length) {
         return this.Promise.reject(
           new MoleculerError(
-            `User not found for criteria '${criteria}'`,
+            `User not found for criteria '${JSON.stringify(criteria)}'`,
             404,
             'NOT_FOUND',
-            [{ field: `${criteria}`, message: 'is not found' }],
+            [{ field: `${JSON.stringify(criteria)}`, message: 'is not found' }],
           ),
         );
       }
