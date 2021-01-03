@@ -21,20 +21,22 @@ class ApiService extends Service {
 
             authorization: true,
 
-            whitelist: ['**'],
+            whitelist: [
+              'auth.login',
+              'auth.register',
+              'users.list',
+              'users.getUser',
+              'users.createUser',
+              'users.updateUser',
+              'users.deleteUser',
+              'slack.create',
+              'inventory.*',
+              'orders.*',
+            ],
 
             aliases: {
               'POST login': 'auth.login',
               'POST register': 'auth.register',
-
-              // The user service aliases are defined explicitly vs 'REST' as the username is used
-              // for operations and not the id directly. These actions delegate to the underlying database
-              // mixin actions after the id for the user associated with the username has been retrieved.
-              'GET users': 'users.list',
-              'GET users/:username': 'users.getUser',
-              'POST users': 'users.createUser',
-              'PUT users/:username': 'users.updateUser',
-              'DELETE users/:username': 'users.deleteUser',
 
               'REST inventory': 'inventory',
 
@@ -43,6 +45,8 @@ class ApiService extends Service {
 
             // Allow services to directly declare their routes
             autoAliases: true,
+            // Only expose routes that have had aliases defined
+            mappingPolicy: 'restrict',
           },
         ],
 
