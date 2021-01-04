@@ -61,13 +61,14 @@ module.exports = {
 
     /**
      * Function to create a Kafka consumer and start consuming messages from a topic.
-     *
-     * @param {String} bootstrapServer the Kafka bootstrap server to connect to
-     * @param {String} topic the Kafka topic to send messages to
-     * @param {Function} callback a callback function invoked for each consumed message,
+     * @param {Object} consumer object containing properties for:
+     * @param {String} consumer.bootstrapServer the Kafka bootstrap server to connect to
+     * @param {String} consumer.topic the Kafka topic to send messages to
+     * @param {Function} consumer.callback a callback function invoked for each consumed message,
      * the callback takes an error and the message from the topic
      */
-    startKafkaConsumer(bootstrapServer, topic, callback) {
+    startKafkaConsumer(consumer) {
+      const { bootstrapServer, topic, callback } = consumer;
       const kafkaOptions = {
         kafkaHost: bootstrapServer, // connect directly to kafka broker (instantiates a KafkaClient)
         batch: undefined, // put client batch settings if you need them (see Client)
@@ -93,13 +94,20 @@ module.exports = {
         migrateRolling: true,
       };
 
-      this.consumer = new Kafka.ConsumerGroup(kafkaOptions, topic);
+      new Kafka.ConsumerGroup(kafkaOptions, topic)
+        .on('message', (message) => callback(null, message))
+        .on('error', (err) => callback(err))
+        .on('SIGINT', () => this.consumer.close(true));
+    },
 
-      this.consumer.on('message', (message) => callback(null, message));
-
-      this.consumer.on('error', (err) => callback(err));
-
-      process.on('SIGINT', () => this.consumer.close(true));
+    /**
+     * Function to create and start consuming messages for multiple Kafka consumers
+     *
+     * @param {Object[]} consumers an array of consumer objects containing properties for
+     * each Kafka consumer to create
+     */
+    startKafkaConsumers(consumers) {
+      consumers.forEach((consumer) => this.startKafkaConsumer(consumer));
     },
   },
 };

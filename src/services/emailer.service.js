@@ -124,10 +124,10 @@ class EmailerService extends Service {
    */
   serviceStarted() {
     // Start the Kafka consumer to read order events for sending emails
-    this.startKafkaConsumer(
-      this.settings.kafka.bootstrapServer,
-      this.settings.kafka.ordersTopic,
-      (error, message) => {
+    this.startKafkaConsumer({
+      bootstrapServer: this.settings.kafka.bootstrapServer,
+      topic: this.settings.kafka.ordersTopic,
+      callback: (error, message) => {
         if (error) {
           this.Promise.reject(
             new MoleculerError(
@@ -139,7 +139,7 @@ class EmailerService extends Service {
         }
         this.processEvent(JSON.parse(message.value));
       },
-    );
+    });
 
     this.logger.debug('Emailer service started.');
   }
