@@ -211,10 +211,10 @@ class InventoryService extends Service {
       this.logger.error(error),
     );
 
-    this.startKafkaConsumer(
-      this.settings.bootstrapServer,
-      this.settings.inventoryTopic,
-      (error, message) => {
+    this.startKafkaConsumer({
+      bootstrapServer: this.settings.bootstrapServer,
+      topic: this.settings.inventoryTopic,
+      callback: (error, message) => {
         if (error) {
           this.Promise.reject(
             new MoleculerError(
@@ -226,7 +226,7 @@ class InventoryService extends Service {
         }
         this.processEvent(message.value);
       },
-    );
+    });
 
     this.logger.debug('Inventory service started.');
   }

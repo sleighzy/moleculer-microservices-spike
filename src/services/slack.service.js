@@ -129,10 +129,10 @@ class SlackService extends Service {
 
     // Start the Kafka consumer to read messages from the topic
     // to be sent to the Slack channel
-    this.startKafkaConsumer(
-      this.settings.bootstrapServer,
-      this.settings.kafkaTopic,
-      (error, message) => {
+    this.startKafkaConsumer({
+      bootstrapServer: this.settings.bootstrapServer,
+      topic: this.settings.kafkaTopic,
+      callback: (error, message) => {
         if (error) {
           this.Promise.reject(
             new MoleculerError(
@@ -145,7 +145,7 @@ class SlackService extends Service {
 
         this.postChatMessage(message.value);
       },
-    );
+    });
 
     this.logger.debug('Slack service started.');
 
