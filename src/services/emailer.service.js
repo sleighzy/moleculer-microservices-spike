@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 const { MoleculerError } = require('moleculer').Errors;
 const { Service } = require('moleculer');
 const nodemailer = require('nodemailer');

@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 const { Service } = require('moleculer');
 const { MoleculerError } = require('moleculer').Errors;
 const DbService = require('moleculer-db');
