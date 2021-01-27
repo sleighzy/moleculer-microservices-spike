@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 const { HighLevelProducer, KafkaClient, KeyedMessage } = require('kafka-node');
 const Kafka = require('kafka-node');
 

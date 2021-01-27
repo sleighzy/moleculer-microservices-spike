@@ -1,6 +1,7 @@
 # moleculer-microservices-spike
 
 [![Moleculer](https://img.shields.io/badge/Powered%20by-Moleculer-green.svg?colorB=0e83cd)](https://moleculer.services)
+![Lint Code Base]
 
 This project is a number of microservices built in Node.js using the [Moleculer]
 microservices framework.
@@ -294,6 +295,8 @@ Listeners - Explained] for a good explanation, diagrams, and examples of this.
 [kafkacat]: https://github.com/edenhill/kafkacat
 [kafka listeners - explained]:
   https://www.confluent.io/blog/kafka-listeners-explained/
+[lint code base]:
+  https://github.com/sleighzy/moleculer-microservices-spike/workflows/Lint%20Code%20Base/badge.svg
 [moleculer]: https://moleculer.services/
 [moleculer api gateway]: https://moleculer.services/docs/0.14/moleculer-web.html
 [mongodb]: https://www.mongodb.com/

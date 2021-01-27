@@ -1,3 +1,4 @@
+/* eslint-disable import/no-unresolved */
 const { Service } = require('moleculer');
 const { MoleculerClientError } = require('moleculer').Errors;
 const bcrypt = require('bcrypt');
