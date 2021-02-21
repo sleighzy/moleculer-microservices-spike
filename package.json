@@ -49,7 +49,7 @@
     "nodemailer": "^6.4.17",
     "os": "^0.1.1",
     "slack-node": "^0.2.0",
-    "snyk": "^1.438.0"
+    "snyk": "^1.440.1"
   },
   "engines": {
     "node": ">= 6.x.x"
