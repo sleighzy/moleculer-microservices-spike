@@ -44,12 +44,12 @@
     "moleculer-db-adapter-mongoose": "^0.8.9",
     "moleculer-jaeger": "^0.2.3",
     "moleculer-web": "^0.9.1",
-    "mongodb": "^3.6.3",
+    "mongodb": "^3.6.4",
     "mongoose": "^5.11.14",
     "nodemailer": "^6.4.17",
     "os": "^0.1.1",
     "slack-node": "^0.2.0",
-    "snyk": "^1.438.0"
+    "snyk": "^1.440.1"
   },
   "engines": {
     "node": ">= 6.x.x"
