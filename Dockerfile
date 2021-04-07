@@ -1,4 +1,4 @@
-FROM node:10.23-buster-slim
+FROM node:10.24.1-buster-slim
 
 ENV NODE_ENV=production
 
