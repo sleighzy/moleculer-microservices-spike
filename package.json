@@ -35,7 +35,7 @@
     "babel-preset-env": "^1.7.0",
     "babel-register": "^6.26.0",
     "bcrypt": "^5.0.1",
-    "ioredis": "^4.24.6",
+    "ioredis": "^4.25.0",
     "jsonwebtoken": "^8.5.1",
     "kafka-node": "^5.0.0",
     "kafka-streams": "^5.0.0",
