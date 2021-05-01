@@ -301,6 +301,7 @@ Listeners - Explained] for a good explanation, diagrams, and examples of this.
   https://www.confluent.io/blog/kafka-listeners-explained/
 [lint code base]:
   https://github.com/sleighzy/moleculer-microservices-spike/workflows/Lint%20Code%20Base/badge.svg
+[mit license]: https://img.shields.io/badge/License-MIT-blue.svg
 [moleculer]: https://moleculer.services/
 [moleculer api gateway]: https://moleculer.services/docs/0.14/moleculer-web.html
 [mongodb]: https://www.mongodb.com/
