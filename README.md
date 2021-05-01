@@ -285,6 +285,10 @@ address, which then get forwarded to the actual Kafka broker via the port
 binding in the Docker Compose file. Read the Confluent blog post [Kafka
 Listeners - Explained] for a good explanation, diagrams, and examples of this.
 
+## License
+
+[![MIT license]](https://lbesson.mit-license.org/)
+
 [building a microservices ecosystem with kafka streams and ksql]:
   https://www.confluent.io/blog/building-a-microservices-ecosystem-with-kafka-streams-and-ksql/
 [confluent]: https://www.confluent.io/
