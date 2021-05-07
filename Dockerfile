@@ -1,4 +1,4 @@
-FROM node:10.24.1-buster-slim
+FROM node:current-buster-slim
 
 ENV NODE_ENV=production
 
@@ -7,7 +7,7 @@ WORKDIR /app
 
 COPY package.json .
 
-RUN npm install --production
+RUN npm install --production --ignore-scripts
 
 COPY src/ .
 
