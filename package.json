@@ -45,7 +45,7 @@
     "moleculer-jaeger": "^0.2.3",
     "moleculer-web": "^0.9.1",
     "mongodb": "^3.6.6",
-    "mongoose": "^5.12.8",
+    "mongoose": "^5.12.9",
     "nodemailer": "^6.6.0",
     "os": "^0.1.1",
     "slack-node": "^0.2.0",
