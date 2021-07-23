@@ -35,7 +35,7 @@
     "babel-preset-env": "^1.7.0",
     "babel-register": "^6.26.0",
     "bcrypt": "^5.0.1",
-    "ioredis": "^4.27.3",
+    "ioredis": "^4.27.6",
     "jsonwebtoken": "^8.5.1",
     "kafka-node": "^5.0.0",
     "kafka-streams": "^5.0.0",
@@ -43,13 +43,13 @@
     "moleculer-db": "^0.8.14",
     "moleculer-db-adapter-mongoose": "^0.8.10",
     "moleculer-jaeger": "^0.2.3",
-    "moleculer-web": "^0.9.1",
+    "moleculer-web": "^0.10.0",
     "mongodb": "^3.6.9",
-    "mongoose": "^5.12.13",
+    "mongoose": "^5.13.0",
     "nodemailer": "^6.6.1",
     "os": "^0.1.1",
     "slack-node": "^0.2.0",
-    "snyk": "^1.620.0"
+    "snyk": "^1.652.0"
   },
   "engines": {
     "node": ">= 6.x.x"
