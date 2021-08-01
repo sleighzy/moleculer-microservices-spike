@@ -39,7 +39,7 @@
     "jsonwebtoken": "^8.5.1",
     "kafka-node": "^5.0.0",
     "kafka-streams": "^5.0.0",
-    "moleculer": "^0.14.14",
+    "moleculer": "^0.14.15",
     "moleculer-db": "^0.8.14",
     "moleculer-db-adapter-mongoose": "^0.8.10",
     "moleculer-jaeger": "^0.2.3",
