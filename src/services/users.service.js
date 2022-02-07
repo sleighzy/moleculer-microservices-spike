@@ -4,7 +4,7 @@ const { MoleculerError } = require('moleculer').Errors;
 const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const KafkaService = require('../mixins/kafka.mixin');
 

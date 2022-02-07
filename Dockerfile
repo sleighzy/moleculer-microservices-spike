@@ -1,14 +1,28 @@
-FROM node:16.5.0-slim
+FROM --platform=amd64 node:14.19.0-slim as build
+
+# Install dependency /usr/bin/ldd for snappy library
+RUN apt-get -y install --no-install-recommends libc-bin && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 
-RUN mkdir /app
 WORKDIR /app
 
-COPY package.json .
+COPY package*.json /app/
 
 RUN npm install --production --ignore-scripts
 
 COPY src/ .
 
-CMD ["npm", "start"]
+# Create the second stage from the Google distroless image to
+# keep the image size down and more secure.
+# amd64 specified here is required for the distroless image to
+# locate module for snappy x64 library.
+FROM --platform=amd64 gcr.io/distroless/nodejs:14
+
+WORKDIR /app
+
+COPY --from=build /usr/bin/ldd /usr/bin/ldd
+COPY --from=build /app /app
+
+CMD ["node_modules/moleculer/bin/moleculer-runner.js"]
