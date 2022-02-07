@@ -3,7 +3,7 @@
 [![Moleculer](https://img.shields.io/badge/Powered%20by-Moleculer-green.svg?colorB=0e83cd)](https://moleculer.services)
 ![Lint Code Base]
 
-This project is a number of microservices built in Node.js using the [Moleculer]
+This project is a number of microservices built using the [Moleculer]
 microservices framework.
 
 The inspiration for this was to learn more about the Moleculer framework and
