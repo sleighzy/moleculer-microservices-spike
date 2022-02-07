@@ -1,7 +1,7 @@
 /* eslint-disable import/no-unresolved */
 const { Service } = require('moleculer');
 const { MoleculerClientError } = require('moleculer').Errors;
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 class AuthService extends Service {
