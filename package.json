@@ -20,7 +20,7 @@
   "author": "",
   "devDependencies": {
     "eslint": "^8.8.0",
-    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-airbnb": "^19.0.4",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-import": "^2.25.4",
     "eslint-plugin-prettier": "^3.4.0",
