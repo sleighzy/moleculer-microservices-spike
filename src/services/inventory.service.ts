@@ -1,10 +1,10 @@
 /* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
+import { Service } from 'moleculer';
 const { MoleculerError } = require('moleculer').Errors;
-const DbService = require('moleculer-db');
-const MongooseAdapter = require('moleculer-db-adapter-mongoose');
-const mongoose = require('mongoose');
-const KafkaService = require('../mixins/kafka.mixin');
+import DbService from 'moleculer-db';
+import MongooseAdapter from 'moleculer-db-adapter-mongoose';
+import mongoose from 'mongoose';
+import KafkaService from '../mixins/kafka.mixin';
 
 class InventoryService extends Service {
   constructor(broker) {
@@ -237,4 +237,4 @@ class InventoryService extends Service {
   }
 }
 
-module.exports = InventoryService;
+export default InventoryService;

@@ -1,8 +1,8 @@
 /* eslint-disable import/no-unresolved */
 const { MoleculerError } = require('moleculer').Errors;
-const { Service } = require('moleculer');
-const nodemailer = require('nodemailer');
-const KafkaService = require('../mixins/kafka.mixin');
+import { Service } from 'moleculer';
+import nodemailer from 'nodemailer';
+import KafkaService from '../mixins/kafka.mixin';
 
 class EmailerService extends Service {
   constructor(broker) {
@@ -153,4 +153,4 @@ class EmailerService extends Service {
   }
 }
 
-module.exports = EmailerService;
+export default EmailerService;

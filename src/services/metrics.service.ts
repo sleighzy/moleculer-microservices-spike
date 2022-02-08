@@ -1,6 +1,6 @@
 /* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const JaegerService = require('moleculer-jaeger');
+import { Service } from 'moleculer';
+import JaegerService from 'moleculer-jaeger';
 
 class MetricsService extends Service {
   constructor(broker) {
@@ -41,4 +41,4 @@ class MetricsService extends Service {
   }
 }
 
-module.exports = MetricsService;
+export default MetricsService;

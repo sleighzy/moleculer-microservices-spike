@@ -1,6 +1,6 @@
 /* eslint-disable import/no-unresolved */
-const { HighLevelProducer, KafkaClient, KeyedMessage } = require('kafka-node');
-const Kafka = require('kafka-node');
+import { HighLevelProducer, KafkaClient, KeyedMessage } from 'kafka-node';
+import Kafka from 'kafka-node';
 
 module.exports = {
   name: 'kafka',
@@ -112,3 +112,5 @@ module.exports = {
     },
   },
 };
+
+export default module.exports;

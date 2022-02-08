@@ -1,8 +1,8 @@
 /* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
+import { Service } from 'moleculer';
 const { MoleculerClientError } = require('moleculer').Errors;
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 class AuthService extends Service {
   constructor(broker) {
@@ -194,4 +194,4 @@ class AuthService extends Service {
   }
 }
 
-module.exports = AuthService;
+export default AuthService;

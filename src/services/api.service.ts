@@ -1,6 +1,6 @@
 /* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const ApiGateway = require('moleculer-web');
+import { Service } from 'moleculer';
+import ApiGateway from 'moleculer-web';
 
 const { UnAuthorizedError } = ApiGateway.Errors;
 
@@ -117,4 +117,4 @@ class ApiService extends Service {
   }
 }
 
-module.exports = ApiService;
+export default ApiService;

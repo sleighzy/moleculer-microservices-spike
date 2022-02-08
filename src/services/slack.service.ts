@@ -1,8 +1,8 @@
 /* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
+import { Service } from 'moleculer';
 const { MoleculerError } = require('moleculer').Errors;
-const Slack = require('slack-node');
-const KafkaService = require('../mixins/kafka.mixin');
+import Slack from 'slack-node';
+import KafkaService from '../mixins/kafka.mixin';
 
 class SlackService extends Service {
   constructor(broker) {
@@ -163,4 +163,4 @@ class SlackService extends Service {
   }
 }
 
-module.exports = SlackService;
+export default SlackService;
