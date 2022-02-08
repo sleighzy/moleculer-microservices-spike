@@ -1,9 +1,9 @@
 /* eslint-disable import/no-unresolved */
-import { Service } from 'moleculer';
+const { Service } = require('moleculer');
 const { MoleculerError } = require('moleculer').Errors;
-import DbService from 'moleculer-db';
-import MongooseAdapter from 'moleculer-db-adapter-mongoose';
-import mongoose from 'mongoose';
+const DbService = require('moleculer-db');
+const MongooseAdapter = require('moleculer-db-adapter-mongoose');
+const mongoose = require('mongoose');
 import KafkaService from '../mixins/kafka.mixin';
 
 class OrdersService extends Service {

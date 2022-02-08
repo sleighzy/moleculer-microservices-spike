@@ -1,5 +1,5 @@
 /* eslint-disable import/no-unresolved */
-import { Service } from 'moleculer';
+const { Service } = require('moleculer');
 const { MoleculerClientError } = require('moleculer').Errors;
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';

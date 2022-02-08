@@ -1,6 +1,6 @@
 /* eslint-disable import/no-unresolved */
+const { Service } = require('moleculer');
 const { MoleculerError } = require('moleculer').Errors;
-import { Service } from 'moleculer';
 import nodemailer from 'nodemailer';
 import KafkaService from '../mixins/kafka.mixin';
 

@@ -1,5 +1,5 @@
 /* eslint-disable import/no-unresolved */
-import { Service } from 'moleculer';
+const { Service } = require('moleculer');
 const { MoleculerError } = require('moleculer').Errors;
 import Slack from 'slack-node';
 import KafkaService from '../mixins/kafka.mixin';

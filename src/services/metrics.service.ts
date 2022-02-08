@@ -1,5 +1,5 @@
 /* eslint-disable import/no-unresolved */
-import { Service } from 'moleculer';
+const { Service } = require('moleculer');
 import JaegerService from 'moleculer-jaeger';
 
 class MetricsService extends Service {
