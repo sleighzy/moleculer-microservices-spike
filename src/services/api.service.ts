@@ -1,11 +1,18 @@
-/* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const ApiGateway = require('moleculer-web');
+import { Context, Service, ServiceBroker } from 'moleculer';
+import ApiGateway from 'moleculer-web';
+import { User } from './types';
 
-const { UnAuthorizedError } = ApiGateway.Errors;
+const { UnAuthorizedError, ERR_INVALID_TOKEN } = ApiGateway.Errors;
+
+interface ApiGatewayContext extends Context {
+  meta: {
+    user: User;
+    token: string;
+  };
+}
 
 class ApiService extends Service {
-  constructor(broker) {
+  constructor(broker: ServiceBroker) {
     super(broker);
 
     this.parseServiceSchema({
@@ -72,8 +79,8 @@ class ApiService extends Service {
   /**
    * Invoked when calling services that require authentication.
    */
-  authorize(ctx, route, req) {
-    let authToken;
+  authorize(ctx: ApiGatewayContext, route: any, req: any) {
+    let authToken: string;
     const authHeader = req.headers.authorization;
     if (authHeader) {
       const [type, value] = authHeader.split(' ');
@@ -82,13 +89,13 @@ class ApiService extends Service {
       }
     }
 
-    return this.Promise.resolve(authToken)
-      .then((token) => {
+    return Promise.resolve(authToken)
+      .then((token: string) => {
         if (token) {
           // Verify JWT token
           return ctx
             .call('auth.resolveToken', { token })
-            .then((user) => {
+            .then((user: User) => {
               if (user) {
                 this.logger.debug('Authenticated via JWT: ', user.username);
                 const { id, username, email } = user;
@@ -108,11 +115,15 @@ class ApiService extends Service {
         }
         return null;
       })
-      .then((user) => {
+      .then((user: User) => {
         if (req.$endpoint.action.auth === 'required' && !user) {
-          return this.Promise.reject(new UnAuthorizedError());
+          return Promise.reject(
+            new UnAuthorizedError(ERR_INVALID_TOKEN, {
+              message: 'No user found for token',
+            }),
+          );
         }
-        return this.Promise.resolve(user);
+        return Promise.resolve(user);
       });
   }
 }
