@@ -4,15 +4,15 @@ FROM node:14.19.0-slim as build
 RUN apt-get -y install --no-install-recommends libc-bin=2.24-11+deb9u4 && \
     rm -rf /var/lib/apt/lists/*
 
-ENV NODE_ENV=production
-
 WORKDIR /app
 
-COPY package*.json /app/
+COPY package*.json tsconfig.json ./
 
-RUN npm install --production --ignore-scripts
+RUN npm install
 
-COPY src/ .
+COPY src/ src
+
+RUN npm run build
 
 # Create the second stage from the Google distroless image to
 # keep the image size down and more secure.
@@ -23,6 +23,10 @@ FROM gcr.io/distroless/nodejs:14
 WORKDIR /app
 
 COPY --from=build /usr/bin/ldd /usr/bin/ldd
-COPY --from=build /app /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/src/public ./public
+COPY --from=build /app/dist .
+
+COPY moleculer.config.js .
 
 CMD ["node_modules/moleculer/bin/moleculer-runner.js"]
