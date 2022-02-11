@@ -24,6 +24,8 @@ x-moleculer-service: &moleculer-service
   image: moleculer-microservices-spike
   logging: *default-logging
   env_file: docker-compose.env
+  profiles:
+    - services
 
 services:
   api:
@@ -114,11 +116,17 @@ services:
     image: redis:alpine
     logging: *default-logging
     hostname: redis
+    profiles:
+      - infrastructure
+    ports:
+      - 6379:6379
 
   mongodb:
     image: mongo
     logging: *default-logging
     hostname: mongo
+    profiles:
+      - infrastructure
     ports:
       - 27017:27017
 
@@ -127,6 +135,8 @@ services:
     logging: *default-logging
     hostname: zookeeper
     container_name: zookeeper
+    profiles:
+      - infrastructure
     ports:
       - '2181:2181'
     volumes:
@@ -147,6 +157,8 @@ services:
     logging: *default-logging
     hostname: kafka
     container_name: kafka
+    profiles:
+      - infrastructure
     depends_on:
       - zookeeper
     ports:
@@ -159,7 +171,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       # Internal listener for communication to brokers from within the
       # Docker network, external listener for accessing from Docker host.
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.103:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.104:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -183,6 +195,8 @@ services:
     image: jaegertracing/all-in-one:latest
     logging: *default-logging
     hostname: jaeger
+    profiles:
+      - monitoring
     ports:
       - '5775:5775/udp'
       - '6831:6831/udp'
