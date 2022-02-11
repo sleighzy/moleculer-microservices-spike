@@ -30,11 +30,8 @@ This deployment uses Docker containers and consists of the following components:
 # Install dependencies
 npm install
 
-# Start developing with REPL
+# Start developing with REPL, this starts all services
 npm run dev
-
-# Start production
-npm start
 
 # Run unit tests
 npm test
@@ -45,6 +42,21 @@ npm run ci
 # Run ESLint
 npm run lint
 ```
+
+## Running Services
+
+Individual services can be started with the following commands:
+
+`npm run service:<service-name>`
+
+- `service:api`
+- `service:auth`
+- `service:emailer`
+- `service:inventory`
+- `service:metrics`
+- `service:orders`
+- `service:slack`
+- `service:users`
 
 ## Run Docker Deployment of Services
 
@@ -284,6 +296,29 @@ subsequently direct the Kafka producer to send messages to your machine's ip
 address, which then get forwarded to the actual Kafka broker via the port
 binding in the Docker Compose file. Read the Confluent blog post [Kafka
 Listeners - Explained] for a good explanation, diagrams, and examples of this.
+
+## Troubleshooting
+
+### Clearing bad messages from Kafka topics
+
+// The consumer group id consists of the prefix 'moleculer-', the name of the
+service that // this mixin is being merged into, and the topic being consumed.
+groupId: `moleculer-${this.name}-${topic}`,
+
+```sh
+❯ kafkacat -b localhost:9092 -G moleculer-orders-orders orders
+% Waiting for group rebalance
+% Group moleculer-orders-orders rebalanced (memberid rdkafka-5a47dbea-0cdf-42da-a91b-e256c1fdb0dd): assigned: orders [0]
+% Reached end of topic orders [0] at offset 2
+^C% Group moleculer-orders-orders rebalanced (memberid rdkafka-5a47dbea-0cdf-42da-a91b-e256c1fdb0dd): revoked: orders [0]
+❯ kafkacat -b localhost:9092 -G moleculer-emailer-orders orders
+% Waiting for group rebalance
+% Group moleculer-emailer-orders rebalanced (memberid rdkafka-525bc97b-f3c3-42c1-b605-cd39801e0802): assigned: orders [0]
+{ "eventType": "OrderCreated", "order": { "customerId": 61026a41abc3d40013fdd8d0 , "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }
+{ "eventType": "OrderCreated", "order": { "customerId": "61026a41abc3d40013fdd8d0", "product": "Raspberry Pi 3", "quantity": 1, "price": 99.00, "state": "Pending" } }
+% Reached end of topic orders [0] at offset 2
+^C% Group moleculer-emailer-orders rebalanced (memberid rdkafka-525bc97b-f3c3-42c1-b605-cd39801e0802): revoked: orders [0]
+```
 
 ## License
 

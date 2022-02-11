@@ -4,7 +4,7 @@
   "description": "My Moleculer microservices project",
   "scripts": {
     "build": "tsc",
-    "dev": "moleculer-runner --repl --hot src/services",
+    "dev": "moleculer-runner --repl --hot dist/services",
     "start": "moleculer-runner",
     "ci": "jest --watch",
     "test": "snyk test && jest --coverage",
@@ -12,7 +12,15 @@
     "docker:build": "docker build -t moleculer-microservices-spike .",
     "docker:run": "docker-compose up -d",
     "snyk-protect": "snyk protect",
-    "prepare": "npm run snyk-protect"
+    "prepare": "npm run snyk-protect",
+    "service:api": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/api.service.js",
+    "service:auth": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/auth.service.js",
+    "service:emailer": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/emailer.service.js",
+    "service:inventory": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/inventory.service.js",
+    "service:metrics": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/metrics.service.js",
+    "service:orders": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/orders.service.js",
+    "service:slack": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/slack.service.js",
+    "service:users": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/users.service.js"
   },
   "keywords": [
     "microservices",
