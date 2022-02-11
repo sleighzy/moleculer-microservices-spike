@@ -97,11 +97,11 @@ Run the command below to build the Moleculer services images.
 docker-compose --profile services build
 ```
 
-The initial startup of ZooKeeper and Kafka may be slower than the other services
-so these can be started first if necessary.
+The initial startup Kafka may be slower than the other services so this can be
+started first if necessary.
 
 ```console
-docker-compose up -d zookeeper kafka
+docker-compose up -d kafka
 ```
 
 Run the command below to startup all infrastructure, e.g. Kafka, Redis, Mongodb.

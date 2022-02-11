@@ -3,10 +3,6 @@ version: '3.0'
 # Not mounting these as external persistent host volumes
 # as this data only needs to be ephemeral for dev purposes
 volumes:
-  zookeeper-txn-logs:
-    # external: true
-  zookeeper-data:
-    # external: true
   kafka-data:
     # external: true
 
@@ -130,45 +126,26 @@ services:
     ports:
       - 27017:27017
 
-  zookeeper:
-    image: confluentinc/cp-zookeeper:5.5.3
-    logging: *default-logging
-    hostname: zookeeper
-    container_name: zookeeper
-    profiles:
-      - infrastructure
-    ports:
-      - '2181:2181'
-    volumes:
-      - zookeeper-data:/var/lib/zookeeper/data
-      - zookeeper-txn-logs:/var/lib/zookeeper/log
-    environment:
-      ZOOKEEPER_SERVER_ID: 1
-      ZOOKEEPER_CLIENT_PORT: '2181'
-      ZOOKEEPER_TICK_TIME: '2000'
-      # https://issues.apache.org/jira/browse/ZOOKEEPER-3056
-      ZOOKEEPER_ZOOKEEPER_SNAPSHOT_TRUST_EMPTY: 'true'
-      # JMX configuration for accessing metrics
-      KAFKA_JMX_HOSTNAME: zookeeper
-      KAFKA_JMX_PORT: 39999
-
+  # The additional CONTROLLER listener and shell script in the command
+  # is required so that Kafka can be run using the new KRaft protocol
+  # and removing the need for running ZooKeeper.
   kafka:
-    image: confluentinc/cp-kafka:5.5.3
+    image: confluentinc/cp-kafka:6.2.0
+    command: "bash -c 'if [ ! -f /tmp/update_run.sh ]; then echo \"ERROR: Did you forget the update_run.sh file that came with this docker-compose.yml file?\" && exit 1 ; else /tmp/update_run.sh && /etc/confluent/docker/run ; fi'"
     logging: *default-logging
     hostname: kafka
     container_name: kafka
     profiles:
       - infrastructure
-    depends_on:
-      - zookeeper
     ports:
-      - '9092:9092'
+      - 9092:9092
     volumes:
+      - ./kafka/update_run.sh:/tmp/update_run.sh
       - kafka-data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       # Internal listener for communication to brokers from within the
       # Docker network, external listener for accessing from Docker host.
       KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.104:9092
@@ -185,6 +162,11 @@ services:
       # JMX configuration for accessing metrics
       KAFKA_JMX_HOSTNAME: kafka
       KAFKA_JMX_PORT: 49999
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+      KAFKA_LISTENERS: 'INTERNAL://kafka:29092,CONTROLLER://kafka:29093,EXTERNAL://0.0.0.0:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       CONFLUENT_METRICS_ENABLE: 'false'
       CONFLUENT_SUPPORT_CUSTOMER_ID: anonymous
 
