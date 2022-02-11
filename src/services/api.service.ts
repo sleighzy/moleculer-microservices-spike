@@ -1,6 +1,6 @@
 import { Context, Service, ServiceBroker } from 'moleculer';
 import ApiGateway from 'moleculer-web';
-import { User } from './types';
+import { User } from '../types/users';
 
 const { UnAuthorizedError, ERR_INVALID_TOKEN } = ApiGateway.Errors;
 
@@ -79,7 +79,7 @@ class ApiService extends Service {
   /**
    * Invoked when calling services that require authentication.
    */
-  authorize(ctx: ApiGatewayContext, route: any, req: any) {
+  async authorize(ctx: ApiGatewayContext, route: any, req: any): Promise<User> {
     let authToken: string;
     const authHeader = req.headers.authorization;
     if (authHeader) {
