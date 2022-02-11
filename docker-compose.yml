@@ -18,13 +18,18 @@ x-logging: &default-logging
     max-size: '10m'
     max-file: '1'
 
+x-moleculer-service: &moleculer-service
+  build:
+      context: .
+  image: moleculer-microservices-spike
+  logging: *default-logging
+  env_file: docker-compose.env
+
 services:
   api:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
+    depends_on:
+      - redis
     environment:
       NODEID: 'node-api'
       SERVICES: api
@@ -36,44 +41,34 @@ services:
       - 'traefik.http.services.api.loadbalancer.server.port=4000'
 
   auth:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
+    depends_on:
+      - redis
     environment:
       NODEID: 'node-auth'
       SERVICES: auth
 
   metrics:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
+    depends_on:
+      - redis
     environment:
       NODEID: 'node-metrics'
       SERVICES: metrics
 
   users:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
     depends_on:
+      - redis
       - mongodb
     environment:
       NODEID: 'node-users'
       SERVICES: users
 
   inventory:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
     depends_on:
+      - redis
       - kafka
       - mongodb
     environment:
@@ -81,12 +76,9 @@ services:
       SERVICES: inventory
 
   orders:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
     depends_on:
+      - redis
       - kafka
       - mongodb
     environment:
@@ -94,33 +86,26 @@ services:
       SERVICES: orders
 
   greeter:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
+    depends_on:
+      - redis
     environment:
       NODEID: 'node-greeter'
       SERVICES: greeter
 
   slack:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
     depends_on:
+      - redis
       - kafka
     environment:
       NODEID: 'node-slack'
       SERVICES: slack
 
   emailer:
-    build:
-      context: .
-    image: moleculer-microservices-spike
-    logging: *default-logging
-    env_file: docker-compose.env
+    <<: *moleculer-service
+    depends_on:
+      - redis
     environment:
       NODEID: 'node-emailer'
       SERVICES: emailer
@@ -132,6 +117,7 @@ services:
 
   mongodb:
     image: mongo
+    logging: *default-logging
     hostname: mongo
     ports:
       - 27017:27017
@@ -209,7 +195,7 @@ services:
       COLLECTOR_ZIPKIN_HTTP_PORT: 9411
 
   traefik:
-    image: traefik:v2.3
+    image: traefik:v2.6
     logging: *default-logging
     command:
       - --api=true
