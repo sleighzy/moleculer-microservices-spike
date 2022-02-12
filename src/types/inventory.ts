@@ -16,6 +16,11 @@ export enum InventoryEventType {
   ITEM_UPDATED = 'ItemUpdated',
 }
 
+export interface InventoryEvent {
+  eventType: InventoryEventType;
+  item: InventoryItem;
+}
+
 export enum InventoryState {
   AVAILABLE = 'Available',
   NOT_AVAILABLE = 'Not Available',

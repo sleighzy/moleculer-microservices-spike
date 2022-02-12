@@ -5,6 +5,7 @@ import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
 import KafkaService from '../mixins/kafka.mixin';
 import {
+  InventoryEvent,
   InventoryEventType,
   InventoryItem,
   InventoryQuery,
@@ -197,7 +198,7 @@ class InventoryService extends Service {
   }
 
   updateItemState({
-    ctx,
+    ctx, // eslint-disable-line @typescript-eslint/no-unused-vars
     item,
     state,
   }: {
@@ -216,24 +217,21 @@ class InventoryService extends Service {
    * @param {Object} event event containing event type and item information.
    * @returns {Promise}
    */
-  async processEvent(event: InventoryEventType): Promise<any> {
-    const itemEvent = JSON.parse(event);
-
+  async processEvent(event: InventoryEvent): Promise<any> {
     return new Promise((resolve) => {
-      if (itemEvent.eventType === InventoryEventType.ITEM_ADDED) {
+      const { item, eventType } = event;
+      if (eventType === InventoryEventType.ITEM_ADDED) {
         // This calls "inventory.insert" which is the insert() function from the DbService mixin.
-        resolve(
-          this.broker.call('inventory.insert', { entity: itemEvent.item }),
-        );
-      } else if (itemEvent.eventType === InventoryEventType.ITEM_UPDATED) {
+        resolve(this.broker.call('inventory.insert', { entity: item }));
+      } else if (eventType === InventoryEventType.ITEM_UPDATED) {
         // This calls "inventory.update" which is the update() function from the DbService mixin.
-        resolve(this.broker.call('inventory.update', itemEvent.item));
-      } else if (itemEvent.eventType === InventoryEventType.ITEM_REMOVED) {
+        resolve(this.broker.call('inventory.update', item));
+      } else if (eventType === InventoryEventType.ITEM_REMOVED) {
         // This calls "inventory.update" which is the remove() function from the DbService mixin.
-        resolve(this.broker.call('inventory.remove', itemEvent.item));
+        resolve(this.broker.call('inventory.remove', item));
       } else {
         // Not an error as services may publish different event types in the future.
-        this.logger.debug('Unknown eventType:', itemEvent.eventType);
+        this.logger.warn('Unknown eventType:', eventType);
       }
     });
   }
@@ -245,14 +243,9 @@ class InventoryService extends Service {
    * @param {eventType} type the event type
    * @returns {Promise}
    */
-  async sendEvent({
-    item,
-    eventType,
-  }: {
-    item: InventoryItem;
-    eventType: InventoryEventType;
-  }): Promise<any> {
+  async sendEvent(event: InventoryEvent): Promise<any> {
     return new Promise((resolve, reject) => {
+      const { item, eventType } = event;
       if (!item) {
         reject('No inventory item provided when sending event.');
       }
@@ -275,7 +268,7 @@ class InventoryService extends Service {
     });
   }
 
-  handleMessage = (error: any, message: any): void => {
+  handleMessage = (error: any, message: string): void => {
     this.logger.debug(message);
     if (error) {
       Promise.reject(
@@ -286,7 +279,7 @@ class InventoryService extends Service {
         ),
       );
     }
-    this.processEvent(message);
+    this.processEvent(JSON.parse(message));
   };
 
   serviceStarted(): Promise<void> {
