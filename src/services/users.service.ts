@@ -1,13 +1,12 @@
 import { Context, Service, ServiceBroker } from 'moleculer';
 import { MoleculerError } from 'moleculer/src/errors';
+import * as DbService from 'moleculer-db';
+import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User, UserIdentity } from '../types/users';
 import KafkaService from '../mixins/kafka.mixin';
-
-const DbService = require('moleculer-db');
-const MongooseAdapter = require('moleculer-db-adapter-mongoose');
-const mongoose = require('mongoose');
 
 interface ContextWithUser extends Context {
   params: {
@@ -37,11 +36,11 @@ class UsersService extends Service {
 
       mixins: [DbService, KafkaService],
 
-      adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
+      adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'username', 'email'],
       model: mongoose.model(
         'User',
-        mongoose.Schema({
+        new mongoose.Schema({
           customerId: { type: Number },
           username: { type: String },
           password: { type: String },

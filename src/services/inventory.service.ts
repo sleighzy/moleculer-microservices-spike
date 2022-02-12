@@ -1,5 +1,8 @@
 import { Context, Service, ServiceBroker } from 'moleculer';
 import { MoleculerError } from 'moleculer/src/errors';
+import * as DbService from 'moleculer-db';
+import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
+import mongoose from 'mongoose';
 import KafkaService from '../mixins/kafka.mixin';
 import {
   InventoryEventType,
@@ -7,10 +10,6 @@ import {
   InventoryQuery,
   InventoryState,
 } from '../types/inventory';
-
-const DbService = require('moleculer-db');
-const MongooseAdapter = require('moleculer-db-adapter-mongoose');
-const mongoose = require('mongoose');
 
 interface ContextWithInventory extends Context {
   params: {
@@ -36,11 +35,11 @@ class InventoryService extends Service {
 
       mixins: [DbService, KafkaService],
 
-      adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
+      adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'product', 'price', 'state', 'created', 'updated'],
       model: mongoose.model(
         'Product',
-        mongoose.Schema({
+        new mongoose.Schema({
           product: { type: String },
           price: { type: Number },
           state: {
