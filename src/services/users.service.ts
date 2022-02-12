@@ -1,15 +1,32 @@
-/* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const { MoleculerError } = require('moleculer').Errors;
+import { Context, Service, ServiceBroker } from 'moleculer';
+import { MoleculerError } from 'moleculer/src/errors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { User, UserIdentity } from '../types/users';
+import KafkaService from '../mixins/kafka.mixin';
+
 const DbService = require('moleculer-db');
 const MongooseAdapter = require('moleculer-db-adapter-mongoose');
 const mongoose = require('mongoose');
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import KafkaService from '../mixins/kafka.mixin';
+
+interface ContextWithUser extends Context {
+  params: {
+    username?: string;
+    user: User;
+  };
+  meta: {
+    token?: string;
+  };
+}
+
+interface ContextWithCustomer extends Context {
+  params: {
+    customerId: string;
+  };
+}
 
 class UsersService extends Service {
-  constructor(broker) {
+  constructor(broker: ServiceBroker) {
     super(broker);
 
     this.parseServiceSchema({
@@ -121,15 +138,13 @@ class UsersService extends Service {
       entityUpdated: this.userUpdated,
       entityRemoved: this.userRemoved,
 
-      created: this.serviceCreated,
       started: this.serviceStarted,
-      stopped: this.serviceStopped,
     });
   }
 
   // Action handlers
 
-  async getUser(ctx) {
+  async getUser(ctx: ContextWithUser) {
     const { username } = ctx.params;
     this.logger.debug('getUser:', username);
     return this.retrieveUser(ctx, { username }).then((user) =>
@@ -138,20 +153,21 @@ class UsersService extends Service {
     );
   }
 
-  async getUserByCustomerId(ctx) {
+  async getUserByCustomerId(ctx: ContextWithCustomer) {
     const { customerId } = ctx.params;
     this.logger.debug('getUserByCustomerId:', customerId);
+
     return this.retrieveUser(ctx, { customerId }).then((user) =>
       // eslint-disable-next-line no-underscore-dangle
       ctx.call('users.get', { id: user._id }),
     );
   }
 
-  async createUser(ctx) {
+  async createUser(ctx: ContextWithUser): Promise<UserIdentity> {
     const { username, email, password } = ctx.params.user;
     this.logger.debug('createUser:', username);
 
-    const users = await ctx.call('users.find', { query: { username } });
+    const users: User[] = await ctx.call('users.find', { query: { username } });
     if (users.length) {
       return Promise.reject(
         new MoleculerError('User already exists.', 409, 'ALREADY_EXISTS', [
@@ -166,14 +182,16 @@ class UsersService extends Service {
       email,
       password: bcrypt.hashSync(password, 10),
     };
+
     // This calls "users.insert" which is the insert() function from the DbService mixin.
-    return ctx
-      .call('users.insert', { entity: userEntity })
-      .then((user) => this.transformUser(user, true, ctx.meta.token));
+    const user: User = await ctx.call('users.insert', { entity: userEntity });
+    return this.transformUser(user, true, ctx.meta.token);
   }
 
-  async updateUser(ctx) {
+  async updateUser(ctx: ContextWithUser): Promise<void> {
     const { username, email } = ctx.params.user;
+    this.logger.debug('updateUser', username);
+
     if (username !== ctx.params.username) {
       return Promise.reject(
         new MoleculerError(
@@ -184,50 +202,54 @@ class UsersService extends Service {
         ),
       );
     }
-    this.logger.debug('updateUser', username);
-    return this.retrieveUser(ctx, { username }).then((user) =>
-      // eslint-disable-next-line no-underscore-dangle
-      ctx.call('users.update', { id: user._id, email, updated: Date.now() }),
-    );
+
+    const user = await this.retrieveUser(ctx, { username });
+    await ctx.call('users.update', {
+      id: user._id,
+      email,
+      updated: Date.now(),
+    });
+
+    this.logger.info('Updated user', user._id, user.username);
   }
 
-  async deleteUser(ctx) {
+  async deleteUser(ctx: ContextWithUser): Promise<void> {
     const { username } = ctx.params;
     this.logger.debug('deleteUser:', username);
-    return this.retrieveUser(ctx, { username }).then((user) =>
-      // eslint-disable-next-line no-underscore-dangle
-      ctx.call('users.remove', { id: user._id }),
-    );
+
+    const user = await this.retrieveUser(ctx, { username });
+    await ctx.call('users.remove', { id: user._id });
+
+    this.logger.info('Deleted user', user._id, user.username);
   }
 
   // Private methods.
 
-  async retrieveUser(ctx, criteria) {
-    return ctx.call('users.find', { query: criteria }).then((users) => {
-      if (!users.length) {
-        return this.Promise.reject(
-          new MoleculerError(
-            `User not found for criteria '${JSON.stringify(criteria)}'`,
-            404,
-            'NOT_FOUND',
-            [{ field: `${JSON.stringify(criteria)}`, message: 'is not found' }],
-          ),
-        );
-      }
-      return users[0];
-    });
+  async retrieveUser(ctx: Context, criteria): Promise<User> {
+    const users: User[] = await ctx.call('users.find', { query: criteria });
+    if (!users.length) {
+      return Promise.reject(
+        new MoleculerError(
+          `User not found for criteria '${JSON.stringify(criteria)}'`,
+          404,
+          'NOT_FOUND',
+          [{ field: `${JSON.stringify(criteria)}`, message: 'is not found' }],
+        ),
+      );
+    }
+    return users[0];
   }
 
-  transformUser(user, withToken, token) {
-    const identity = user;
+  transformUser(user: User, withToken: boolean, token: string): UserIdentity {
+    const identity: UserIdentity = user;
     // TODO: add extra information to user object from identity source
     if (withToken) {
       identity.token = token || this.generateToken(user);
     }
-    return { identity };
+    return identity;
   }
 
-  generateToken(user) {
+  generateToken(user: User): string {
     return jwt.sign(
       // eslint-disable-next-line no-underscore-dangle
       { id: user._id, username: user.username },
@@ -237,24 +259,24 @@ class UsersService extends Service {
   }
 
   // eslint-disable-next-line no-unused-vars
-  userCreated(user, ctx) {
+  userCreated(user: User, ctx: Context) {
     this.logger.debug('User created:', user);
     return this.sendEvent(user, 'UserCreated');
   }
 
   // eslint-disable-next-line no-unused-vars
-  userUpdated(user, ctx) {
+  userUpdated(user: User, ctx: Context) {
     this.logger.debug('User updated:', user);
     return this.sendEvent(user, 'UserUpdated');
   }
 
-  // eslint-disable-next-line no-unused-vars
-  userRemoved(user, ctx) {
+  // tslint-disable-next-line no-unused-vars
+  userRemoved(user: User, ctx: Context) {
     this.logger.debug('User deleted:', user);
     return this.sendEvent(user, 'UserDeleted');
   }
 
-  sendEvent(user, eventType) {
+  sendEvent(user: any, eventType: any) {
     return new this.Promise((resolve, reject) => {
       const data = user;
       data.eventType = eventType;
@@ -262,7 +284,7 @@ class UsersService extends Service {
       this.sendMessage(
         this.settings.kafka.usersTopic,
         { key: user.username, value: JSON.stringify(data) },
-        (error, result) => {
+        (error: any, result: any) => {
           if (error) {
             reject(error);
           } else {
@@ -276,20 +298,14 @@ class UsersService extends Service {
 
   // Event handlers
 
-  serviceCreated() {
-    this.logger.debug('Users service created.');
-  }
-
-  serviceStarted() {
+  serviceStarted(): Promise<void> {
     this.startKafkaProducer(this.settings.kafka.bootstrapServer, (error) =>
       this.logger.error(error),
     );
 
     this.logger.debug('Users service started.');
-  }
 
-  serviceStopped() {
-    this.logger.debug('Users service stopped.');
+    return Promise.resolve();
   }
 }
 
