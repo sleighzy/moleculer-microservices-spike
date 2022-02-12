@@ -1,13 +1,25 @@
-/* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const { MoleculerError } = require('moleculer').Errors;
-const DbService = require('moleculer-db');
-const MongooseAdapter = require('moleculer-db-adapter-mongoose');
-const mongoose = require('mongoose');
-const KafkaService = require('../mixins/kafka.mixin');
+import { Context, Service, ServiceBroker } from 'moleculer';
+import { MoleculerError } from 'moleculer/src/errors';
+import * as DbService from 'moleculer-db';
+import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
+import mongoose from 'mongoose';
+import KafkaService from '../mixins/kafka.mixin';
+import { OrderEvent, OrderEventType, OrderState } from '../types/orders';
+
+interface ContextWithOrder extends Context {
+  params: {
+    id: string;
+    order: {
+      customerId: string;
+      product: string;
+      quantity: number;
+      price: string;
+    };
+  };
+}
 
 class OrdersService extends Service {
-  constructor(broker) {
+  constructor(broker: ServiceBroker) {
     super(broker);
 
     this.parseServiceSchema({
@@ -18,7 +30,7 @@ class OrdersService extends Service {
 
       mixins: [DbService, KafkaService],
 
-      adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
+      adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: [
         '_id',
         'customerId',
@@ -31,14 +43,20 @@ class OrdersService extends Service {
       ],
       model: mongoose.model(
         'Order',
-        mongoose.Schema({
+        new mongoose.Schema({
           customerId: { type: Number },
           product: { type: String },
           quantity: { type: Number },
           price: { type: Number },
           state: {
             type: String,
-            enum: ['Pending', 'Approved', 'Rejected', 'Completed', 'Cancelled'],
+            enum: [
+              OrderState.PENDING,
+              OrderState.APPROVED,
+              OrderState.REJECTED,
+              OrderState.COMPLETED,
+              OrderState.CANCELLED,
+            ],
           },
           created: { type: Date, default: Date.now },
           updated: { type: Date, default: Date.now },
@@ -71,17 +89,11 @@ class OrdersService extends Service {
         },
       },
 
-      events: {
-        // No events
-      },
-
-      created: this.serviceCreated,
       started: this.serviceStarted,
-      stopped: this.serviceStopped,
     });
   }
 
-  submitOrder(ctx) {
+  submitOrder(ctx: ContextWithOrder) {
     const { customerId, product, quantity, price } = ctx.params.order;
     this.logger.debug('Submit Order:', customerId, product, quantity, price);
 
@@ -90,32 +102,35 @@ class OrdersService extends Service {
       product,
       quantity,
       price,
-      state: 'Pending',
+      state: OrderState.PENDING,
     };
-    return this.sendEvent(order, 'OrderCreated');
+    return this.sendEvent(order, OrderEventType.ORDER_CREATED);
   }
 
-  rejectOrder(ctx) {
+  rejectOrder(ctx: ContextWithOrder) {
     const { id } = ctx.params;
     this.logger.debug('Rejecting Order:', id);
-    return this.updateOrderState(ctx, id, 'Rejected');
+    return this.updateOrderState(ctx, id, OrderState.REJECTED);
   }
 
-  cancelOrder(ctx) {
+  cancelOrder(ctx: ContextWithOrder) {
     const { id } = ctx.params;
     this.logger.debug('Cancelling Order:', id);
-    return this.updateOrderState(ctx, id, 'Cancelled');
+    return this.updateOrderState(ctx, id, OrderState.CANCELLED);
   }
 
-  completeOrder(ctx) {
+  completeOrder(ctx: ContextWithOrder) {
     const { id } = ctx.params;
     this.logger.debug('Completing Order:', id);
-    return this.updateOrderState(ctx, id, 'Completed');
+    return this.updateOrderState(ctx, id, OrderState.COMPLETED);
   }
 
   // Private methods
-  updateOrderState(ctx, id, state) {
-    return this.sendEvent({ id, state, updated: Date.now() }, 'OrderUpdated');
+  updateOrderState(ctx: ContextWithOrder, id: string, state: string) {
+    return this.sendEvent(
+      { id, state, updated: Date.now() },
+      OrderEventType.ORDER_UPDATED,
+    );
   }
 
   /**
@@ -124,22 +139,19 @@ class OrdersService extends Service {
    * @param {Object} event event containing event type and order information.
    * @returns {Promise}
    */
-  processEvent(event) {
+  processEvent(event: OrderEvent): Promise<unknown> {
     this.logger.debug(event);
-    const orderEvent = JSON.parse(event);
 
-    return new this.Promise((resolve) => {
-      if (orderEvent.eventType === 'OrderCreated') {
+    return new Promise((resolve: any) => {
+      if (event.eventType === OrderEventType.ORDER_CREATED) {
         // This calls "orders.insert" which is the insert() function from the DbService mixin.
-        resolve(
-          this.broker.call('orders.insert', { entity: orderEvent.order }),
-        );
-      } else if (orderEvent.eventType === 'OrderUpdated') {
+        resolve(this.broker.call('orders.insert', { entity: event.order }));
+      } else if (event.eventType === OrderEventType.ORDER_UPDATED) {
         // This calls "orders.update" which is the update() function from the DbService mixin.
-        resolve(this.broker.call('orders.update', orderEvent.order));
+        resolve(this.broker.call('orders.update', event.order));
       } else {
         // Not an error as services may publish different event types in the future.
-        this.logger.debug('Unknown eventType:', orderEvent.eventType);
+        this.logger.debug('Unknown eventType:', event.eventType);
       }
     });
   }
@@ -151,8 +163,8 @@ class OrdersService extends Service {
    * @param {String} eventType the event type
    * @returns {Promise}
    */
-  sendEvent(order, eventType) {
-    return new this.Promise((resolve, reject) => {
+  sendEvent(order: any, eventType: OrderEventType): Promise<unknown> {
+    return new Promise((resolve, reject) => {
       if (!order) {
         reject('No order provided when sending event.');
       }
@@ -163,7 +175,7 @@ class OrdersService extends Service {
       this.sendMessage(
         this.settings.ordersTopic,
         { key: order.product, value: JSON.stringify({ eventType, order }) },
-        (error, result) => {
+        (error: any, result: any) => {
           if (error) {
             reject(error);
           } else {
@@ -175,11 +187,21 @@ class OrdersService extends Service {
     });
   }
 
-  serviceCreated() {
-    this.logger.debug('Orders service created.');
-  }
+  handleMessage = (error: any, message: string): void => {
+    this.logger.debug(message);
+    if (error) {
+      Promise.reject(
+        new MoleculerError(
+          `${error.message} ${error.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      );
+    }
+    this.processEvent(JSON.parse(message));
+  };
 
-  serviceStarted() {
+  serviceStarted(): Promise<void> {
     this.logger.debug(this.settings);
 
     this.startKafkaProducer(this.settings.bootstrapServer, (error) =>
@@ -191,27 +213,13 @@ class OrdersService extends Service {
     this.startKafkaConsumer({
       bootstrapServer: this.settings.bootstrapServer,
       topic: this.settings.ordersTopic,
-      callback: (error, message) => {
-        if (error) {
-          this.Promise.reject(
-            new MoleculerError(
-              `${error.message} ${error.detail}`,
-              500,
-              'CONSUMER_MESSAGE_ERROR',
-            ),
-          );
-        }
-
-        this.processEvent(message.value);
-      },
+      callback: this.handleMessage,
     });
 
     this.logger.debug('Orders service started.');
-  }
 
-  serviceStopped() {
-    this.logger.debug('Orders service stopped.');
+    return Promise.resolve();
   }
 }
 
-module.exports = OrdersService;
+export default OrdersService;

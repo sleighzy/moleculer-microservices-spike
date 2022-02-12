@@ -1,11 +1,18 @@
-/* eslint-disable import/no-unresolved */
-const { MoleculerError } = require('moleculer').Errors;
-const { Service } = require('moleculer');
-const nodemailer = require('nodemailer');
-const KafkaService = require('../mixins/kafka.mixin');
+import { Context, Service, ServiceBroker } from 'moleculer';
+import { MoleculerError } from 'moleculer/src/errors';
+import nodemailer from 'nodemailer';
+import KafkaService from '../mixins/kafka.mixin';
+import { Message, OrderEvent, OrderEventType } from '../types/emailer';
+import { User } from '../types/users';
+
+interface ContextWithParams extends Context {
+  params: {
+    message: string;
+  };
+}
 
 class EmailerService extends Service {
-  constructor(broker) {
+  constructor(broker: ServiceBroker) {
     super(broker);
 
     this.parseServiceSchema({
@@ -39,13 +46,8 @@ class EmailerService extends Service {
         },
       },
 
-      events: {
-        // no events
-      },
-
       created: this.serviceCreated,
       started: this.serviceStarted,
-      stopped: this.serviceStopped,
     });
   }
 
@@ -54,7 +56,7 @@ class EmailerService extends Service {
    *
    * @param {String} message - Email message body
    */
-  send(ctx) {
+  send(ctx: ContextWithParams) {
     this.sendEmail({
       from: '"foo" <foo@example.com>',
       to: 'bar@example.com, baz@example.com',
@@ -64,10 +66,10 @@ class EmailerService extends Service {
     });
   }
 
-  sendEmail(message) {
+  sendEmail(message: Message): Promise<unknown> {
     // Send mail with defined transport object.
     return new Promise((resolve, reject) => {
-      this.transporter.sendMail(message, (error, info) => {
+      this.transporter.sendMail(message, (error: any, info: any) => {
         if (error) {
           this.logger.error(error);
           reject(error);
@@ -85,13 +87,14 @@ class EmailerService extends Service {
     });
   }
 
-  async processEvent(event) {
-    if (event.eventType === 'OrderCreated') {
+  async processEvent(event: OrderEvent) {
+    if (event.eventType === OrderEventType.ORDER_CREATED) {
       this.logger.debug(event);
       const { customerId, product, quantity } = event.order;
-      const user = await this.broker.call('users.getUserByCustomerId', {
+      const user: User = await this.broker.call('users.getUserByCustomerId', {
         customerId,
       });
+
       this.sendEmail({
         from: '"Customer Services" <noreply@example.com>',
         to: user.email,
@@ -101,6 +104,19 @@ class EmailerService extends Service {
       });
     }
   }
+
+  handleMessage = (error: any, message: string): void => {
+    if (error) {
+      Promise.reject(
+        new MoleculerError(
+          `${error.message} ${error.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      );
+    }
+    this.processEvent(JSON.parse(message));
+  };
 
   /**
    * Service created lifecycle event handler
@@ -123,34 +139,18 @@ class EmailerService extends Service {
   /**
    * Service started lifecycle event handler
    */
-  serviceStarted() {
+  serviceStarted(): Promise<void> {
     // Start the Kafka consumer to read order events for sending emails
     this.startKafkaConsumer({
       bootstrapServer: this.settings.kafka.bootstrapServer,
       topic: this.settings.kafka.ordersTopic,
-      callback: (error, message) => {
-        if (error) {
-          this.Promise.reject(
-            new MoleculerError(
-              `${error.message} ${error.detail}`,
-              500,
-              'CONSUMER_MESSAGE_ERROR',
-            ),
-          );
-        }
-        this.processEvent(JSON.parse(message.value));
-      },
+      callback: this.handleMessage,
     });
 
     this.logger.debug('Emailer service started.');
-  }
 
-  /**
-   * Service stopped lifecycle event handler
-   */
-  serviceStopped() {
-    this.logger.debug('Emailer service stopped.');
+    return Promise.resolve();
   }
 }
 
-module.exports = EmailerService;
+export default EmailerService;

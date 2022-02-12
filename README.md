@@ -30,11 +30,8 @@ This deployment uses Docker containers and consists of the following components:
 # Install dependencies
 npm install
 
-# Start developing with REPL
+# Start developing with REPL, this starts all services
 npm run dev
-
-# Start production
-npm start
 
 # Run unit tests
 npm test
@@ -44,6 +41,30 @@ npm run ci
 
 # Run ESLint
 npm run lint
+```
+
+## Running Services
+
+Individual services can be started with the following commands:
+
+`npm run service:<service-name>`
+
+- `service:api`
+- `service:auth`
+- `service:emailer`
+- `service:inventory`
+- `service:metrics`
+- `service:orders`
+- `service:slack`
+- `service:users`
+
+The Moleculer services in this repository depend on other components such as
+Mongodb, Redis, and Kafka to run. These components can be started by running the
+below command. This will start only the subset of Docker services identified by
+that profile name.
+
+```console
+docker-compose --profile infrastructure up -d
 ```
 
 ## Run Docker Deployment of Services
@@ -66,27 +87,33 @@ the below settings:
 Run the command below to pull all Docker images defined in the
 `docker-compose.yml` file.
 
-```bash
-docker-compose pull
+```console
+docker-compose --profile infrastructure pull
 ```
 
 Run the command below to build the Moleculer services images.
 
-```bash
-docker-compose build
+```console
+docker-compose --profile services build
 ```
 
-The initial startup of ZooKeeper and Kafka may be slower than the other services
-so these can be started first if necessary.
+The initial startup Kafka may be slower than the other services so this can be
+started first if necessary.
 
-```bash
-docker-compose up -d zookeeper kafka
+```console
+docker-compose up -d kafka
 ```
 
-Run the command below to startup all services.
+Run the command below to startup all infrastructure, e.g. Kafka, Redis, Mongodb.
 
-```bash
-docker-compose up -d
+```console
+docker-compose --profile infrastructure up -d
+```
+
+Run the command below to startup all Moleculer services.
+
+```console
+docker-compose --profile services up -d
 ```
 
 ## Moleculer Web Console
@@ -117,7 +144,7 @@ The `test/requests/register-user.json` file contains the json payload describing
 the new user account. The command below can be run to post this to the
 `/api/register` endpoint.
 
-```bash
+```console
 http POST http://moleculer-127-0-0-1.nip.io/api/auth/register < test/requests/register-user.json
 ```
 
@@ -133,9 +160,11 @@ published to the Kafka topic.
 The command below can be run to log in the new user. The response will contain a
 `token` field containing a valid authenticated JWT.
 
-```bash
+```console
 http http://moleculer-127-0-0-1.nip.io/api/auth/login username='bob' password='secret-password'
+```
 
+```json
 {
     "_id": "5fe97aac26c85f0014d789c7",
     "email": "bob@example.com",
@@ -151,10 +180,12 @@ The below command will retrieve the information for the `bob` user account. The
 The JWT previously obtained when logging in should be added in the
 `Authorization` header with a value of `Bearer <jwt>`.
 
-```bash
+```console
 http http://moleculer-127-0-0-1.nip.io/api/users/bob \
   Authorization:'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.....'
+```
 
+```json
 {
     "__v": 0,
     "_id": "5fe97aac26c85f0014d789c7",
@@ -179,14 +210,14 @@ item.
 Run the below command to use the [kafkacat] utility to watch the `inventory`
 topic.
 
-```sh
-kafkacat -C -b localhost:9092 -t inventory
+```console
+kcat -C -b localhost:9092 -t inventory
 ```
 
 Run the below command using the [httpie] client to call the Inventory `create`
 handler via the [Moleculer API Gateway].
 
-```sh
+```console
 echo '{ "item": { "product": "Raspberry Pi 4b", "price": 145.00 } }' | http POST http://moleculer-127-0-0-1.nip.io/api/inventory
 ```
 
@@ -218,9 +249,9 @@ from your user account. You can get the list of users and their customer
 identifier by making an authenticated API call to the
 <http://moleculer-127-0-0-1.nip.io/api/users> endpoint.
 
-```sh
+```console
 echo '{ "eventType": "OrderCreated", "order": { "customerId": 12345, "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }' \
-  | kafkacat \
+  | kcat \
   -P \
   -b localhost:9092 \
   -t orders
@@ -242,7 +273,7 @@ environment variable.
 The below command uses the [HTTPie] client to post a message to the Slack
 service that will then be delivered to your Slack channel.
 
-```bash
+```console
 http POST http://moleculer-127-0-0-1.nip.io/api/slack message='Hello from the Slack service using HTTP POST'
 ```
 
@@ -257,8 +288,8 @@ The example below uses the awesome [kafkacat] command-line utility for producing
 and consuming messages (plus more) to/from Kafka. See further below as to the
 usage of `localhost:9092`.
 
-```bash
-echo 'slack message via Kafka' | kafkacat -P -b localhost:9092 -t slack-notifications
+```console
+echo 'slack message via Kafka' | kcat -P -b localhost:9092 -t slack-notifications
 ```
 
 ## Kafka Service and Kafka Broker Listeners
@@ -270,7 +301,7 @@ environment variables for the `kafka` service:
 KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
 # Internal listener for communication to brokers from within the
 # Docker network, external listener for accessing from Docker host.
-KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.103:9092
+KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.104:9092
 ```
 
 The `INTERNAL` listener, `kafka:29092`, is used by the services defined within
@@ -284,6 +315,29 @@ subsequently direct the Kafka producer to send messages to your machine's ip
 address, which then get forwarded to the actual Kafka broker via the port
 binding in the Docker Compose file. Read the Confluent blog post [Kafka
 Listeners - Explained] for a good explanation, diagrams, and examples of this.
+
+## Troubleshooting
+
+### Clearing bad messages from Kafka topics
+
+// The consumer group id consists of the prefix 'moleculer-', the name of the
+service that // this mixin is being merged into, and the topic being consumed.
+groupId: `moleculer-${this.name}-${topic}`,
+
+```console
+❯ kcat -b localhost:9092 -G moleculer-orders-orders orders
+% Waiting for group rebalance
+% Group moleculer-orders-orders rebalanced (memberid rdkafka-5a47dbea-0cdf-42da-a91b-e256c1fdb0dd): assigned: orders [0]
+% Reached end of topic orders [0] at offset 2
+^C% Group moleculer-orders-orders rebalanced (memberid rdkafka-5a47dbea-0cdf-42da-a91b-e256c1fdb0dd): revoked: orders [0]
+❯ kcat -b localhost:9092 -G moleculer-emailer-orders orders
+% Waiting for group rebalance
+% Group moleculer-emailer-orders rebalanced (memberid rdkafka-525bc97b-f3c3-42c1-b605-cd39801e0802): assigned: orders [0]
+{ "eventType": "OrderCreated", "order": { "customerId": 61026a41abc3d40013fdd8d0 , "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }
+{ "eventType": "OrderCreated", "order": { "customerId": "61026a41abc3d40013fdd8d0", "product": "Raspberry Pi 3", "quantity": 1, "price": 99.00, "state": "Pending" } }
+% Reached end of topic orders [0] at offset 2
+^C% Group moleculer-emailer-orders rebalanced (memberid rdkafka-525bc97b-f3c3-42c1-b605-cd39801e0802): revoked: orders [0]
+```
 
 ## License
 

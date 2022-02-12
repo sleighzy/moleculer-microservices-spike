@@ -58,16 +58,4 @@ module.exports = {
 
   // Register middlewares
   middlewares: [],
-
-  // Called after broker created.
-  // eslint-disable-next-line no-unused-vars
-  created(broker) {},
-
-  // Called after broker started.
-  // eslint-disable-next-line no-unused-vars
-  started(broker) {},
-
-  // Called after broker stopped.
-  // eslint-disable-next-line no-unused-vars
-  stopped(broker) {},
 };

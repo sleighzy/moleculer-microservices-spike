@@ -1,13 +1,31 @@
-/* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const { MoleculerError } = require('moleculer').Errors;
-const DbService = require('moleculer-db');
-const MongooseAdapter = require('moleculer-db-adapter-mongoose');
-const mongoose = require('mongoose');
-const KafkaService = require('../mixins/kafka.mixin');
+import { Context, Service, ServiceBroker } from 'moleculer';
+import { MoleculerError } from 'moleculer/src/errors';
+import * as DbService from 'moleculer-db';
+import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
+import mongoose from 'mongoose';
+import KafkaService from '../mixins/kafka.mixin';
+import {
+  InventoryEvent,
+  InventoryEventType,
+  InventoryItem,
+  InventoryQuery,
+  InventoryState,
+} from '../types/inventory';
+
+interface ContextWithInventory extends Context {
+  params: {
+    id: string;
+    item: {
+      product: string;
+      price: string;
+    };
+    product: string;
+    quantity: number;
+  };
+}
 
 class InventoryService extends Service {
-  constructor(broker) {
+  constructor(broker: ServiceBroker) {
     super(broker);
 
     this.parseServiceSchema({
@@ -18,14 +36,21 @@ class InventoryService extends Service {
 
       mixins: [DbService, KafkaService],
 
-      adapter: new MongooseAdapter('mongodb://mongodb:27017/moleculer-db'),
+      adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
       fields: ['_id', 'product', 'price', 'state', 'created', 'updated'],
       model: mongoose.model(
         'Product',
-        mongoose.Schema({
+        new mongoose.Schema({
           product: { type: String },
           price: { type: Number },
-          state: { type: String, enum: ['Available', 'Reserved', 'Shipped'] },
+          state: {
+            type: String,
+            enum: [
+              InventoryState.AVAILABLE,
+              InventoryState.RESERVED,
+              InventoryState.SHIPPED,
+            ],
+          },
           created: { type: Date, default: Date.now },
           updated: { type: Date, default: Date.now },
         }),
@@ -62,41 +87,40 @@ class InventoryService extends Service {
         },
       },
 
-      events: {
-        // No events
-      },
-
-      created: this.serviceCreated,
       started: this.serviceStarted,
-      stopped: this.serviceStopped,
     });
   }
 
-  addItem(ctx) {
+  addItem(ctx: ContextWithInventory): Promise<any> {
     const { product, price } = ctx.params.item;
     this.logger.debug('Add item:', product, price);
 
     const newProduct = {
+      id: Math.random(),
       product,
       price,
-      state: 'Available',
+      state: InventoryState.AVAILABLE,
+      updated: Date.now(),
     };
 
-    return this.sendEvent(newProduct, 'ItemAdded');
+    return this.sendEvent({
+      item: newProduct,
+      eventType: InventoryEventType.ITEM_ADDED,
+    });
   }
 
-  reserveItem(ctx) {
+  async reserveItem(ctx: ContextWithInventory): Promise<any> {
     const { product, quantity } = ctx.params;
     this.logger.debug('Reserve item:', product, quantity);
 
-    return this.Promise.resolve()
-      .then(() => this.getQuantity(ctx, product, true))
+    return Promise.resolve()
+      .then(() => this.getQuantity({ ctx, product, available: true }))
       .then((available) => {
         if (quantity > available) {
           // Emit an event that there is no further stock available
           this.broker.emit('inventory.insufficientStock', { product });
 
-          return this.Promise.reject(
+          return Promise.reject(
             new MoleculerError(
               `Not enough items available in inventory for product '${product}'.`,
             ),
@@ -106,41 +130,85 @@ class InventoryService extends Service {
         // This calls "inventory.list" which is the list() function from the DbService mixin.
         // Update each item retrieved and set their state to "Reserved" while payment processing takes place.
         return ctx.call('inventory.list', {
-          query: { product, state: 'Available' },
+          query: { product, state: InventoryState.AVAILABLE },
           pageSize: quantity,
         });
       })
-      .then((res) =>
+      .then((res: any) =>
         res.rows.forEach((doc) =>
-          // eslint-disable-next-line no-underscore-dangle
-          this.updateItemState(ctx, doc._id, 'Reserved'),
+          this.updateItemState({
+            ctx,
+            item: doc._id,
+            state: InventoryState.RESERVED,
+          }),
         ),
       )
       .catch((err) => this.logger.error(err));
   }
 
-  shipItem(ctx) {
+  async shipItem(ctx: ContextWithInventory): Promise<any> {
     const { id } = ctx.params;
     this.logger.debug('Ship item:', id);
-    return this.updateItemState(ctx, id, 'Shipped');
+    const item = await this.getItem({ ctx, id });
+    return this.updateItemState({ ctx, item, state: InventoryState.SHIPPED });
   }
 
   // Private methods
-  getQuantity(ctx, product, available) {
-    this.logger.debug('Get quantity:', product, available);
-    const query = { product };
-    // Filter for "Available" items only, otherwise return all.
-    if (available) {
-      query.state = 'Available';
+  async getItem({
+    ctx,
+    id,
+  }: {
+    ctx: Context;
+    id: string;
+  }): Promise<InventoryItem> {
+    this.logger.debug('Get item:', id);
+    const item: InventoryItem = await ctx.call('inventory.get', { id });
+    if (!item) {
+      return Promise.reject(
+        new MoleculerError(
+          `Inventory item not found for id '${id}'`,
+          404,
+          'NOT_FOUND',
+          [{ field: `${id}`, message: 'is not found' }],
+        ),
+      );
     }
+
+    this.logger.debug('Item found:', item);
+    return item;
+  }
+
+  async getQuantity({
+    ctx,
+    product,
+    available,
+  }: {
+    ctx: ContextWithInventory;
+    product: string;
+    available: boolean;
+  }): Promise<unknown> {
+    this.logger.debug('Get quantity:', product, available);
+    // Filter for "Available" items only, otherwise return all.
+    const query: InventoryQuery = {
+      product,
+      state: available ? InventoryState.AVAILABLE : '',
+    };
     // This calls "inventory.count" which is the count() function from the DbService mixin.
     return ctx.call('inventory.count', { query });
   }
 
-  updateItemState(ctx, id, state) {
-    this.logger.debug('Update item state:', id, state);
+  updateItemState({
+    ctx, // eslint-disable-line @typescript-eslint/no-unused-vars
+    item,
+    state,
+  }: {
+    ctx: ContextWithInventory;
+    item: InventoryItem;
+    state: InventoryState;
+  }): Promise<any> {
+    this.logger.debug('Update item state:', item.id, state);
 
-    return this.sendEvent({ id, state, updated: Date.now() }, 'ItemUpdated');
+    return this.sendEvent({ item, eventType: InventoryEventType.ITEM_UPDATED });
   }
 
   /**
@@ -149,25 +217,21 @@ class InventoryService extends Service {
    * @param {Object} event event containing event type and item information.
    * @returns {Promise}
    */
-  processEvent(event) {
-    this.logger.debug(event);
-    const itemEvent = JSON.parse(event);
-
-    return new this.Promise((resolve) => {
-      if (itemEvent.eventType === 'ItemAdded') {
+  async processEvent(event: InventoryEvent): Promise<any> {
+    return new Promise((resolve) => {
+      const { item, eventType } = event;
+      if (eventType === InventoryEventType.ITEM_ADDED) {
         // This calls "inventory.insert" which is the insert() function from the DbService mixin.
-        resolve(
-          this.broker.call('inventory.insert', { entity: itemEvent.item }),
-        );
-      } else if (itemEvent.eventType === 'ItemUpdated') {
+        resolve(this.broker.call('inventory.insert', { entity: item }));
+      } else if (eventType === InventoryEventType.ITEM_UPDATED) {
         // This calls "inventory.update" which is the update() function from the DbService mixin.
-        resolve(this.broker.call('inventory.update', itemEvent.item));
-      } else if (itemEvent.eventType === 'ItemRemoved') {
+        resolve(this.broker.call('inventory.update', item));
+      } else if (eventType === InventoryEventType.ITEM_REMOVED) {
         // This calls "inventory.update" which is the remove() function from the DbService mixin.
-        resolve(this.broker.call('inventory.remove', itemEvent.item));
+        resolve(this.broker.call('inventory.remove', item));
       } else {
         // Not an error as services may publish different event types in the future.
-        this.logger.debug('Unknown eventType:', itemEvent.eventType);
+        this.logger.warn('Unknown eventType:', eventType);
       }
     });
   }
@@ -179,8 +243,9 @@ class InventoryService extends Service {
    * @param {eventType} type the event type
    * @returns {Promise}
    */
-  sendEvent(item, eventType) {
-    return new this.Promise((resolve, reject) => {
+  async sendEvent(event: InventoryEvent): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const { item, eventType } = event;
       if (!item) {
         reject('No inventory item provided when sending event.');
       }
@@ -203,38 +268,35 @@ class InventoryService extends Service {
     });
   }
 
-  serviceCreated() {
-    this.logger.debug('Inventory service created.');
-  }
+  handleMessage = (error: any, message: string): void => {
+    this.logger.debug(message);
+    if (error) {
+      Promise.reject(
+        new MoleculerError(
+          `${error.message} ${error.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      );
+    }
+    this.processEvent(JSON.parse(message));
+  };
 
-  serviceStarted() {
-    this.startKafkaProducer(this.settings.bootstrapServer, (error) =>
+  serviceStarted(): Promise<void> {
+    this.startKafkaProducer(this.settings.bootstrapServer, (error: any) =>
       this.logger.error(error),
     );
 
     this.startKafkaConsumer({
       bootstrapServer: this.settings.bootstrapServer,
       topic: this.settings.inventoryTopic,
-      callback: (error, message) => {
-        if (error) {
-          this.Promise.reject(
-            new MoleculerError(
-              `${error.message} ${error.detail}`,
-              500,
-              'CONSUMER_MESSAGE_ERROR',
-            ),
-          );
-        }
-        this.processEvent(message.value);
-      },
+      callback: this.handleMessage,
     });
 
     this.logger.debug('Inventory service started.');
-  }
 
-  serviceStopped() {
-    this.logger.debug('Inventory service stopped.');
+    return Promise.resolve();
   }
 }
 
-module.exports = InventoryService;
+export default InventoryService;

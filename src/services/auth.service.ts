@@ -1,11 +1,24 @@
-/* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const { MoleculerClientError } = require('moleculer').Errors;
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+import { Context, Service, ServiceBroker } from 'moleculer';
+import { MoleculerClientError } from 'moleculer/src/errors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+import { User, UserIdentity } from '../types/users';
+
+interface AuthContext extends Context {
+  params: {
+    user?: User;
+    username?: string;
+    password?: string;
+    token?: string;
+  };
+  meta: {
+    token?: string;
+  };
+}
 
 class AuthService extends Service {
-  constructor(broker) {
+  constructor(broker: ServiceBroker) {
     super(broker);
 
     this.parseServiceSchema({
@@ -48,14 +61,6 @@ class AuthService extends Service {
           handler: this.resolveToken,
         },
       },
-
-      events: {
-        // No events
-      },
-
-      created: this.serviceCreated,
-      started: this.serviceStarted,
-      stopped: this.serviceStopped,
     });
   }
 
@@ -65,15 +70,15 @@ class AuthService extends Service {
    * @param {Context} ctx Moleculer request context
    * @returns a user identity and JWT token
    */
-  login(ctx) {
+  async login(ctx: AuthContext): Promise<UserIdentity> {
     const { username, password } = ctx.params;
     this.logger.debug('Logging in user:', username);
 
-    return this.Promise.resolve()
+    return Promise.resolve()
       .then(() => ctx.call('users.getUser', { username }))
-      .then((user) => {
+      .then((user: User) => {
         if (!user) {
-          return this.Promise.reject(
+          return Promise.reject(
             new MoleculerClientError(
               'Username or password is invalid!',
               422,
@@ -84,7 +89,7 @@ class AuthService extends Service {
         }
         return bcrypt.compare(password, user.password).then((res) => {
           if (!res) {
-            return this.Promise.reject(
+            return Promise.reject(
               new MoleculerClientError(
                 'Username or password is invalid!',
                 422,
@@ -105,7 +110,7 @@ class AuthService extends Service {
    * @param {Context} ctx Moleculer request context
    * @returns new user
    */
-  register(ctx) {
+  register(ctx: AuthContext) {
     this.logger.debug('Registering user', ctx.params.user.username);
 
     return ctx.call('users.createUser', { user: ctx.params.user });
@@ -118,8 +123,8 @@ class AuthService extends Service {
    * @param {Context} ctx Moleculer request context
    * @returns user associated with this JWT token
    */
-  resolveToken(ctx) {
-    return new this.Promise((resolve, reject) => {
+  resolveToken(ctx: AuthContext) {
+    return new Promise((resolve, reject) => {
       jwt
         .verify(ctx.params.token, this.settings.jwtSecret, (err, decoded) => {
           if (err) {
@@ -142,15 +147,11 @@ class AuthService extends Service {
    * @param {User} user the authenticated user
    * @param {String} token the JWT token
    */
-  addToken(user, token) {
-    const { _id, username, email } = user;
-    const identity = {
-      _id,
-      username,
-      email,
+  addToken(user: User, token: string): UserIdentity {
+    const identity: UserIdentity = {
+      ...user,
+      token: token || this.generateToken(user),
     };
-
-    identity.token = token || this.generateToken(user);
 
     return identity;
   }
@@ -161,9 +162,8 @@ class AuthService extends Service {
    * @param {User} user the user to generate a token for
    * @returns signed JWT token
    */
-  generateToken(user) {
+  generateToken(user: User): string {
     return jwt.sign(
-      // eslint-disable-next-line no-underscore-dangle
       { id: user._id, username: user.username },
       this.settings.jwtSecret,
       { expiresIn: '60m' },
@@ -176,22 +176,10 @@ class AuthService extends Service {
    * @param {Context} ctx Moleculer request context
    * @param {String} id identifier for user, this is the database id and not the username
    */
-  getById(ctx, id) {
+  getById(ctx: AuthContext, id: string): Promise<User> {
     this.logger.debug('Get by id: ', id);
     return ctx.call('users.get', { id });
   }
-
-  serviceCreated() {
-    this.logger.debug('Auth service created.');
-  }
-
-  serviceStarted() {
-    this.logger.debug('Auth service started.');
-  }
-
-  serviceStopped() {
-    this.logger.debug('Auth service stopped.');
-  }
 }
 
-module.exports = AuthService;
+export default AuthService;
