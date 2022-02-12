@@ -3,7 +3,7 @@ import { MoleculerClientError } from 'moleculer/src/errors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-import { User, UserIdentity } from './types';
+import { User, UserIdentity } from '../types/users';
 
 interface AuthContext extends Context {
   params: {
