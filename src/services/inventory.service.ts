@@ -219,7 +219,6 @@ class InventoryService extends Service {
    * @returns {Promise}
    */
   async processEvent(event: InventoryEventType): Promise<any> {
-    this.logger.debug(event);
     const itemEvent = JSON.parse(event);
 
     return new Promise((resolve) => {
@@ -278,6 +277,20 @@ class InventoryService extends Service {
     });
   }
 
+  handleMessage = (error: any, message: any): void => {
+    this.logger.debug(message);
+    if (error) {
+      Promise.reject(
+        new MoleculerError(
+          `${error.message} ${error.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      );
+    }
+    this.processEvent(message);
+  };
+
   serviceStarted(): Promise<void> {
     this.startKafkaProducer(this.settings.bootstrapServer, (error: any) =>
       this.logger.error(error),
@@ -286,18 +299,7 @@ class InventoryService extends Service {
     this.startKafkaConsumer({
       bootstrapServer: this.settings.bootstrapServer,
       topic: this.settings.inventoryTopic,
-      callback: (error: any, message: any) => {
-        if (error) {
-          Promise.reject(
-            new MoleculerError(
-              `${error.message} ${error.detail}`,
-              500,
-              'CONSUMER_MESSAGE_ERROR',
-            ),
-          );
-        }
-        this.processEvent(message.value);
-      },
+      callback: this.handleMessage,
     });
 
     this.logger.debug('Inventory service started.');
