@@ -5,7 +5,7 @@ import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User, UserIdentity } from '../types/users';
+import { User, UserEvent, UserEventType, UserIdentity } from '../types/users';
 import KafkaService from '../mixins/kafka.mixin';
 
 interface ContextWithUser extends Context {
@@ -143,7 +143,7 @@ class UsersService extends Service {
 
   // Action handlers
 
-  async getUser(ctx: ContextWithUser) {
+  async getUser(ctx: ContextWithUser): Promise<User> {
     const { username } = ctx.params;
     this.logger.debug('getUser:', username);
     return this.retrieveUser(ctx, { username }).then((user) =>
@@ -151,7 +151,7 @@ class UsersService extends Service {
     );
   }
 
-  async getUserByCustomerId(ctx: ContextWithCustomer) {
+  async getUserByCustomerId(ctx: ContextWithCustomer): Promise<User> {
     const { customerId } = ctx.params;
     this.logger.debug('getUserByCustomerId:', customerId);
 
@@ -182,10 +182,10 @@ class UsersService extends Service {
 
     // This calls "users.insert" which is the insert() function from the DbService mixin.
     const user: User = await ctx.call('users.insert', { entity: userEntity });
-    return this.transformUser(user, true, ctx.meta.token);
+    return this.transformUser({ user, withToken: true, token: ctx.meta.token });
   }
 
-  async updateUser(ctx: ContextWithUser): Promise<void> {
+  async updateUser(ctx: ContextWithUser): Promise<User> {
     const { username, email } = ctx.params.user;
     this.logger.debug('updateUser', username);
 
@@ -210,7 +210,7 @@ class UsersService extends Service {
     this.logger.info('Updated user', user._id, user.username);
   }
 
-  async deleteUser(ctx: ContextWithUser): Promise<void> {
+  async deleteUser(ctx: ContextWithUser) {
     const { username } = ctx.params;
     this.logger.debug('deleteUser:', username);
 
@@ -237,7 +237,15 @@ class UsersService extends Service {
     return users[0];
   }
 
-  transformUser(user: User, withToken: boolean, token: string): UserIdentity {
+  transformUser({
+    user,
+    withToken,
+    token,
+  }: {
+    user: User;
+    withToken: boolean;
+    token: string;
+  }): UserIdentity {
     const identity: UserIdentity = user;
     // TODO: add extra information to user object from identity source
     if (withToken) {
@@ -255,37 +263,34 @@ class UsersService extends Service {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  userCreated(user: User, ctx: Context) {
+  userCreated(user: User, ctx: Context): Promise<unknown> {
     this.logger.debug('User created:', user);
-    return this.sendEvent(user, 'UserCreated');
+    return this.sendEvent({ user, eventType: UserEventType.USER_CREATED });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  userUpdated(user: User, ctx: Context) {
+  userUpdated(user: User, ctx: Context): Promise<unknown> {
     this.logger.debug('User updated:', user);
-    return this.sendEvent(user, 'UserUpdated');
+    return this.sendEvent({ user, eventType: UserEventType.USER_UPDATED });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  userRemoved(user: User, ctx: Context) {
+  userRemoved(user: User, ctx: Context): Promise<unknown> {
     this.logger.debug('User deleted:', user);
-    return this.sendEvent(user, 'UserDeleted');
+    return this.sendEvent({ user, eventType: UserEventType.USER_DELETED });
   }
 
-  sendEvent(user: any, eventType: any) {
-    return new this.Promise((resolve, reject) => {
-      const data = user;
-      data.eventType = eventType;
-
+  sendEvent(event: UserEvent): Promise<unknown> {
+    return new Promise((resolve, reject) => {
       this.sendMessage(
         this.settings.kafka.usersTopic,
-        { key: user.username, value: JSON.stringify(data) },
+        { key: event.user.username, value: JSON.stringify(event) },
         (error: any, result: any) => {
           if (error) {
             reject(error);
           } else {
-            this.logger.debug('Result:', result);
-            resolve(data);
+            this.logger.info('Result:', result);
+            resolve(result);
           }
         },
       );
