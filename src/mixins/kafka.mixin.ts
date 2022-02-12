@@ -1,6 +1,16 @@
-/* eslint-disable import/no-unresolved */
-import { HighLevelProducer, KafkaClient, KeyedMessage } from 'kafka-node';
-import Kafka from 'kafka-node';
+import {
+  ConsumerGroup,
+  HighLevelProducer,
+  KafkaClient,
+  KeyedMessage,
+} from 'kafka-node';
+import { ConsumerGroupOptions } from 'kafka-node/types';
+
+export interface KafkaConsumerOptions {
+  bootstrapServer: string;
+  topic: string;
+  callback: (error: Error, message: string | Buffer) => void;
+}
 
 module.exports = {
   name: 'kafka',
@@ -14,7 +24,7 @@ module.exports = {
      * @param {String} bootstrapServer the Kafka bootstrap server to connect to
      * @param {Function} callback a callback function invoked for any Kafka client or producer errors
      */
-    startKafkaProducer(bootstrapServer, callback) {
+    startKafkaProducer(bootstrapServer: string, callback: any): void {
       const client = new KafkaClient({
         kafkaHost: bootstrapServer,
       });
@@ -30,7 +40,7 @@ module.exports = {
         partitionerType: 3,
       });
 
-      this.producer.on('error', (error) => callback(error));
+      this.producer.on('error', (error: any) => callback(error));
     },
 
     /**
@@ -41,7 +51,11 @@ module.exports = {
      * @param {Function} callback a callback function invoked for each published message,
      * the callback takes an error and the result returned from Kafka for the sent message
      */
-    sendMessage(topic, message, callback) {
+    sendMessage(
+      topic: string,
+      message: Record<string, string>,
+      callback: any,
+    ): void {
       const payload = [
         {
           topic,
@@ -51,7 +65,7 @@ module.exports = {
         },
       ];
 
-      this.producer.send(payload, (error, result) => {
+      this.producer.send(payload, (error: any, result: any) => {
         this.logger.debug('Sent message to Kafka:', JSON.stringify(payload));
         if (error) {
           return callback(error);
@@ -68,9 +82,9 @@ module.exports = {
      * @param {Function} consumer.callback a callback function invoked for each consumed message,
      * the callback takes an error and the message from the topic
      */
-    startKafkaConsumer(consumer) {
+    startKafkaConsumer(consumer: KafkaConsumerOptions): void {
       const { bootstrapServer, topic, callback } = consumer;
-      const kafkaOptions = {
+      const kafkaOptions: ConsumerGroupOptions = {
         kafkaHost: bootstrapServer, // connect directly to kafka broker (instantiates a KafkaClient)
         batch: undefined, // put client batch settings if you need them (see Client)
         // ssl: true, // optional (defaults to false) or tls options hash
@@ -95,10 +109,17 @@ module.exports = {
         migrateRolling: true,
       };
 
-      new Kafka.ConsumerGroup(kafkaOptions, topic)
-        .on('message', (message) => callback(null, message))
-        .on('error', (err) => callback(err))
-        .on('SIGINT', () => this.consumer.close(true));
+      const consumerGroup = new ConsumerGroup(kafkaOptions, topic);
+      consumerGroup.on('message', (message) => callback(null, message.value));
+      consumerGroup.on('error', (error) => callback(error, null));
+      process.on('SIGINT', () =>
+        consumerGroup.close(true, (error) =>
+          this.logger.error(
+            'Error closing Kafka consumer group on process exit',
+            error,
+          ),
+        ),
+      );
     },
 
     /**
@@ -107,7 +128,7 @@ module.exports = {
      * @param {Object[]} consumers an array of consumer objects containing properties for
      * each Kafka consumer to create
      */
-    startKafkaConsumers(consumers) {
+    startKafkaConsumers(consumers: KafkaConsumerOptions[]): void {
       consumers.forEach((consumer) => this.startKafkaConsumer(consumer));
     },
   },
