@@ -31,5 +31,7 @@ jobs:
           JAVASCRIPT_DEFAULT_STYLE: prettier
           JAVASCRIPT_ES_CONFIG_FILE: .eslintrc.js
           MARKDOWN_CONFIG_FILE: .markdownlint.json
+          VALIDATE_JAVASCRIPT_ES: false
           VALIDATE_JSON: false
           VALIDATE_NATURAL_LANGUAGE: false
+          VALIDATE_TYPESCRIPT_STANDARD: false
