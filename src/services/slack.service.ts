@@ -1,11 +1,17 @@
-/* eslint-disable import/no-unresolved */
-const { Service } = require('moleculer');
-const { MoleculerError } = require('moleculer').Errors;
+import { Context, Service, ServiceBroker } from 'moleculer';
+import { MoleculerError } from 'moleculer/src/errors';
 import Slack from 'slack-node';
 import KafkaService from '../mixins/kafka.mixin';
 
+interface ContextWithSlack extends Context {
+  params: {
+    message: string;
+    product: string;
+  };
+}
+
 class SlackService extends Service {
-  constructor(broker) {
+  constructor(broker: ServiceBroker) {
     super(broker);
 
     this.parseServiceSchema({
@@ -40,7 +46,7 @@ class SlackService extends Service {
 
       events: {
         'inventory.insufficientStock': {
-          handler(ctx) {
+          handler(ctx: ContextWithSlack) {
             this.postChatMessage(`Insufficient Stock: ${ctx.params.product}`);
           },
         },
@@ -48,16 +54,15 @@ class SlackService extends Service {
 
       created: this.serviceCreated,
       started: this.serviceStarted,
-      stopped: this.serviceStopped,
     });
   }
 
   // Action handler
-  send(ctx) {
+  send(ctx: ContextWithSlack) {
     this.postChatMessage(ctx.params.message);
   }
 
-  postChatMessage(message) {
+  postChatMessage(message: string) {
     this.logger.debug(
       `Posting message '${message}' to Slack channel ${this.settings.channel}`,
     );
@@ -68,9 +73,9 @@ class SlackService extends Service {
         username: this.settings.username,
         text: message,
       },
-      (err, response) => {
+      (err: any, response: any) => {
         if (err) {
-          return this.Promise.reject(
+          return Promise.reject(
             new MoleculerError(
               `${err.message} ${err.detail}`,
               500,
@@ -79,10 +84,24 @@ class SlackService extends Service {
           );
         }
         this.logger.debug(response);
-        return this.Promise.resolve(response);
+        return Promise.resolve(response);
       },
     );
   }
+
+  handleMessage = (error: any, message: string) => {
+    if (error) {
+      Promise.reject(
+        new MoleculerError(
+          `${error.message} ${error.detail}`,
+          500,
+          'CONSUMER_MESSAGE_ERROR',
+        ),
+      );
+    }
+
+    this.postChatMessage(message);
+  };
 
   /**
    * Service created lifecycle event handler
@@ -115,14 +134,12 @@ class SlackService extends Service {
     }
 
     this.logger.debug('Slack service created.');
-
-    return this.Promise.resolve();
   }
 
   /**
    * Service started lifecycle event handler
    */
-  serviceStarted() {
+  serviceStarted(): Promise<void> {
     this.slack = new Slack();
     this.slack.setWebhook(this.settings.webhookUri);
 
@@ -133,33 +150,12 @@ class SlackService extends Service {
     this.startKafkaConsumer({
       bootstrapServer: this.settings.bootstrapServer,
       topic: this.settings.kafkaTopic,
-      callback: (error, message) => {
-        if (error) {
-          this.Promise.reject(
-            new MoleculerError(
-              `${error.message} ${error.detail}`,
-              500,
-              'CONSUMER_MESSAGE_ERROR',
-            ),
-          );
-        }
-
-        this.postChatMessage(message.value);
-      },
+      callback: this.handleMessage,
     });
 
     this.logger.debug('Slack service started.');
 
-    return this.Promise.resolve();
-  }
-
-  /**
-   * Service stopped lifecycle event handler
-   */
-  serviceStopped() {
-    this.logger.debug('Slack service stopped.');
-
-    return this.Promise.resolve();
+    return Promise.resolve();
   }
 }
 
