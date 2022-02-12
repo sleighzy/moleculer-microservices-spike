@@ -135,7 +135,6 @@ class InventoryService extends Service {
       })
       .then((res: any) =>
         res.rows.forEach((doc) =>
-          // eslint-disable-next-line no-underscore-dangle
           this.updateItemState({
             ctx,
             item: doc._id,

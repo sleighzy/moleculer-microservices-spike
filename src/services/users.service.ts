@@ -147,7 +147,6 @@ class UsersService extends Service {
     const { username } = ctx.params;
     this.logger.debug('getUser:', username);
     return this.retrieveUser(ctx, { username }).then((user) =>
-      // eslint-disable-next-line no-underscore-dangle
       ctx.call('users.get', { id: user._id }),
     );
   }
@@ -157,7 +156,6 @@ class UsersService extends Service {
     this.logger.debug('getUserByCustomerId:', customerId);
 
     return this.retrieveUser(ctx, { customerId }).then((user) =>
-      // eslint-disable-next-line no-underscore-dangle
       ctx.call('users.get', { id: user._id }),
     );
   }
@@ -250,26 +248,25 @@ class UsersService extends Service {
 
   generateToken(user: User): string {
     return jwt.sign(
-      // eslint-disable-next-line no-underscore-dangle
       { id: user._id, username: user.username },
       this.settings.jwtSecret,
       { expiresIn: '60m' },
     );
   }
 
-  // eslint-disable-next-line no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   userCreated(user: User, ctx: Context) {
     this.logger.debug('User created:', user);
     return this.sendEvent(user, 'UserCreated');
   }
 
-  // eslint-disable-next-line no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   userUpdated(user: User, ctx: Context) {
     this.logger.debug('User updated:', user);
     return this.sendEvent(user, 'UserUpdated');
   }
 
-  // tslint-disable-next-line no-unused-vars
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   userRemoved(user: User, ctx: Context) {
     this.logger.debug('User deleted:', user);
     return this.sendEvent(user, 'UserDeleted');

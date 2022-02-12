@@ -164,7 +164,6 @@ class AuthService extends Service {
    */
   generateToken(user: User): string {
     return jwt.sign(
-      // eslint-disable-next-line no-underscore-dangle
       { id: user._id, username: user.username },
       this.settings.jwtSecret,
       { expiresIn: '60m' },
