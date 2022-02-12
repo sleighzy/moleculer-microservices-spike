@@ -1,8 +1,10 @@
 import { Context, Service, ServiceBroker } from 'moleculer';
-import ApiGateway from 'moleculer-web';
+import ApiGatewayService from 'moleculer-web';
 import { User } from '../types/users';
 
-const { UnAuthorizedError, ERR_INVALID_TOKEN } = ApiGateway.Errors;
+const { UnAuthorizedError, ERR_INVALID_TOKEN } = ApiGatewayService.Errors;
+const IncomingRequest = ApiGatewayService.IncomingRequest;
+const Route = ApiGatewayService.Route;
 
 interface ApiGatewayContext extends Context {
   meta: {
@@ -17,7 +19,7 @@ class ApiService extends Service {
 
     this.parseServiceSchema({
       name: 'api',
-      mixins: [ApiGateway],
+      mixins: [ApiGatewayService],
 
       // More info about settings: http://moleculer.services/docs/moleculer-web.html
       settings: {
@@ -79,7 +81,11 @@ class ApiService extends Service {
   /**
    * Invoked when calling services that require authentication.
    */
-  async authorize(ctx: ApiGatewayContext, route: any, req: any): Promise<User> {
+  async authorize(
+    ctx: ApiGatewayContext,
+    route: typeof Route,
+    req: typeof IncomingRequest,
+  ): Promise<User> {
     let authToken: string;
     const authHeader = req.headers.authorization;
     if (authHeader) {
