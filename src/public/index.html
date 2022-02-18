@@ -684,7 +684,7 @@
                         body: body ? JSON.stringify(body) : null,
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': authToken ? 'Bearer ' + authToken : 'None'
+                            'Authorization': 'Bearer ' + authToken
                         }
                         }).then(function(res) {
                             item.status = res.status;
