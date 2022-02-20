@@ -1,7 +1,7 @@
 import { Context, Service, ServiceBroker } from 'moleculer';
 import { MoleculerClientError } from 'moleculer/src/errors';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload, VerifyErrors } from 'jsonwebtoken';
 
 import { User, UserIdentity } from '../types/users';
 
@@ -74,28 +74,21 @@ class AuthService extends Service {
     const { username, password } = ctx.params;
     this.logger.debug('Logging in user:', username);
 
-    return Promise.resolve()
-      .then(() => ctx.call('users.getUser', { username }))
-      .then((user: User) => {
-        if (!user) {
-          return Promise.reject(
-            new MoleculerClientError('Username or password is invalid!', 422, '', [
-              { field: 'username', message: 'is not found' },
-            ]),
-          );
-        }
-        return bcrypt.compare(password, user.password).then((res) => {
-          if (!res) {
-            return Promise.reject(
-              new MoleculerClientError('Username or password is invalid!', 422, '', [
-                { field: 'password', message: 'is not valid' },
-              ]),
-            );
-          }
-          return user;
-        });
-      })
-      .then((user) => this.addToken(user, ctx.meta.token));
+    const user: User = await ctx.call('users.getUser', { username });
+    if (!user) {
+      throw new MoleculerClientError('Username or password is invalid!', 422, '', [
+        { field: 'username', message: 'is not found' },
+      ]);
+    }
+
+    const result = bcrypt.compare(password, user.password);
+    if (!result) {
+      throw new MoleculerClientError('Username or password is invalid!', 422, '', [
+        { field: 'password', message: 'is not valid' },
+      ]);
+    }
+
+    return this.addToken(user, ctx.meta.token);
   }
 
   /**
@@ -104,7 +97,7 @@ class AuthService extends Service {
    * @param {Context} ctx Moleculer request context
    * @returns new user
    */
-  register(ctx: AuthContext) {
+  register(ctx: AuthContext): Promise<User> {
     this.logger.debug('Registering user', ctx.params.user.username);
 
     return ctx.call('users.createUser', { user: ctx.params.user });
@@ -117,9 +110,9 @@ class AuthService extends Service {
    * @param {Context} ctx Moleculer request context
    * @returns user associated with this JWT token
    */
-  resolveToken(ctx: AuthContext) {
+  resolveToken(ctx: AuthContext): Promise<User> {
     return new Promise((resolve, reject) => {
-      jwt.verify(ctx.params.token, this.settings.jwtSecret, (err, decoded) => {
+      jwt.verify(ctx.params.token, this.settings.jwtSecret, (err: VerifyErrors, decoded: JwtPayload) => {
         if (err) {
           return reject(err);
         }
