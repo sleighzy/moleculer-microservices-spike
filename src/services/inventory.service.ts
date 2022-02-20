@@ -4,13 +4,7 @@ import * as DbService from 'moleculer-db';
 import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
 import KafkaService from '../mixins/kafka.mixin';
-import {
-  InventoryEvent,
-  InventoryEventType,
-  InventoryItem,
-  InventoryQuery,
-  InventoryState,
-} from '../types/inventory';
+import { InventoryEvent, InventoryEventType, InventoryItem, InventoryQuery, InventoryState } from '../types/inventory';
 
 interface ContextWithInventory extends Context {
   params: {
@@ -45,11 +39,7 @@ class InventoryService extends Service {
           price: { type: Number },
           state: {
             type: String,
-            enum: [
-              InventoryState.AVAILABLE,
-              InventoryState.RESERVED,
-              InventoryState.SHIPPED,
-            ],
+            enum: [InventoryState.AVAILABLE, InventoryState.RESERVED, InventoryState.SHIPPED],
           },
           created: { type: Date, default: Date.now },
           updated: { type: Date, default: Date.now },
@@ -57,8 +47,7 @@ class InventoryService extends Service {
       ),
 
       settings: {
-        bootstrapServer:
-          process.env.INVENTORY_BOOTSTRAP_SERVER || 'localhost:9092',
+        bootstrapServer: process.env.INVENTORY_BOOTSTRAP_SERVER || 'localhost:9092',
         inventoryTopic: process.env.INVENTORY_TOPIC || 'inventory',
       },
 
@@ -121,9 +110,7 @@ class InventoryService extends Service {
           this.broker.emit('inventory.insufficientStock', { product });
 
           return Promise.reject(
-            new MoleculerError(
-              `Not enough items available in inventory for product '${product}'.`,
-            ),
+            new MoleculerError(`Not enough items available in inventory for product '${product}'.`),
           );
         }
         // Retrieve "Available" items, limited by the requested quantity to reserve.
@@ -154,23 +141,14 @@ class InventoryService extends Service {
   }
 
   // Private methods
-  async getItem({
-    ctx,
-    id,
-  }: {
-    ctx: Context;
-    id: string;
-  }): Promise<InventoryItem> {
+  async getItem({ ctx, id }: { ctx: Context; id: string }): Promise<InventoryItem> {
     this.logger.debug('Get item:', id);
     const item: InventoryItem = await ctx.call('inventory.get', { id });
     if (!item) {
       return Promise.reject(
-        new MoleculerError(
-          `Inventory item not found for id '${id}'`,
-          404,
-          'NOT_FOUND',
-          [{ field: `${id}`, message: 'is not found' }],
-        ),
+        new MoleculerError(`Inventory item not found for id '${id}'`, 404, 'NOT_FOUND', [
+          { field: `${id}`, message: 'is not found' },
+        ]),
       );
     }
 
@@ -271,21 +249,13 @@ class InventoryService extends Service {
   handleMessage = (error: any, message: string): void => {
     this.logger.debug(message);
     if (error) {
-      Promise.reject(
-        new MoleculerError(
-          `${error.message} ${error.detail}`,
-          500,
-          'CONSUMER_MESSAGE_ERROR',
-        ),
-      );
+      Promise.reject(new MoleculerError(`${error.message} ${error.detail}`, 500, 'CONSUMER_MESSAGE_ERROR'));
     }
     this.processEvent(JSON.parse(message));
   };
 
   serviceStarted(): Promise<void> {
-    this.startKafkaProducer(this.settings.bootstrapServer, (error: any) =>
-      this.logger.error(error),
-    );
+    this.startKafkaProducer(this.settings.bootstrapServer, (error: any) => this.logger.error(error));
 
     this.startKafkaConsumer({
       bootstrapServer: this.settings.bootstrapServer,

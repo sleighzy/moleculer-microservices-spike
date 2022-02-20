@@ -10,9 +10,7 @@ const os = require('os');
 module.exports = {
   namespace: 'development',
   // It will be unique when scaling up instances in Docker or on local computer
-  nodeID:
-    (process.env.NODEID ? `${process.env.NODEID}-` : '') +
-    os.hostname().toLowerCase(),
+  nodeID: (process.env.NODEID ? `${process.env.NODEID}-` : '') + os.hostname().toLowerCase(),
 
   logger: true,
   logLevel: 'info',

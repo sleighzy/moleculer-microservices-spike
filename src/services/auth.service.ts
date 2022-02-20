@@ -79,23 +79,17 @@ class AuthService extends Service {
       .then((user: User) => {
         if (!user) {
           return Promise.reject(
-            new MoleculerClientError(
-              'Username or password is invalid!',
-              422,
-              '',
-              [{ field: 'username', message: 'is not found' }],
-            ),
+            new MoleculerClientError('Username or password is invalid!', 422, '', [
+              { field: 'username', message: 'is not found' },
+            ]),
           );
         }
         return bcrypt.compare(password, user.password).then((res) => {
           if (!res) {
             return Promise.reject(
-              new MoleculerClientError(
-                'Username or password is invalid!',
-                422,
-                '',
-                [{ field: 'password', message: 'is not valid' }],
-              ),
+              new MoleculerClientError('Username or password is invalid!', 422, '', [
+                { field: 'password', message: 'is not valid' },
+              ]),
             );
           }
           return user;
@@ -125,19 +119,12 @@ class AuthService extends Service {
    */
   resolveToken(ctx: AuthContext) {
     return new Promise((resolve, reject) => {
-      jwt
-        .verify(ctx.params.token, this.settings.jwtSecret, (err, decoded) => {
-          if (err) {
-            return reject(err);
-          }
-          return resolve(decoded);
-        })
-        .then((decoded) => {
-          if (decoded.id) {
-            return this.getById(ctx, decoded.id);
-          }
-          return null;
-        });
+      jwt.verify(ctx.params.token, this.settings.jwtSecret, (err, decoded) => {
+        if (err) {
+          return reject(err);
+        }
+        return resolve(this.getById(ctx, decoded.id));
+      });
     });
   }
 
@@ -163,11 +150,7 @@ class AuthService extends Service {
    * @returns signed JWT token
    */
   generateToken(user: User): string {
-    return jwt.sign(
-      { id: user._id, username: user.username },
-      this.settings.jwtSecret,
-      { expiresIn: '60m' },
-    );
+    return jwt.sign({ id: user._id, username: user.username }, this.settings.jwtSecret, { expiresIn: '60m' });
   }
 
   /**

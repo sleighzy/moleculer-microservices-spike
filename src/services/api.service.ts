@@ -81,11 +81,7 @@ class ApiService extends Service {
   /**
    * Invoked when calling services that require authentication.
    */
-  async authorize(
-    ctx: ApiGatewayContext,
-    route: typeof Route,
-    req: typeof IncomingRequest,
-  ): Promise<User> {
+  async authorize(ctx: ApiGatewayContext, route: typeof Route, req: typeof IncomingRequest): Promise<User> {
     let authToken: string;
     const authHeader = req.headers.authorization;
     if (authHeader) {
