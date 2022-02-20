@@ -1,9 +1,4 @@
-import {
-  ConsumerGroup,
-  HighLevelProducer,
-  KafkaClient,
-  KeyedMessage,
-} from 'kafka-node';
+import { ConsumerGroup, HighLevelProducer, KafkaClient, KeyedMessage } from 'kafka-node';
 import { ConsumerGroupOptions } from 'kafka-node/types';
 
 export interface KafkaConsumerOptions {
@@ -51,11 +46,7 @@ module.exports = {
      * @param {Function} callback a callback function invoked for each published message,
      * the callback takes an error and the result returned from Kafka for the sent message
      */
-    sendMessage(
-      topic: string,
-      message: Record<string, string>,
-      callback: any,
-    ): void {
+    sendMessage(topic: string, message: Record<string, string>, callback: any): void {
       const payload = [
         {
           topic,
@@ -114,10 +105,7 @@ module.exports = {
       consumerGroup.on('error', (error) => callback(error, null));
       process.on('SIGINT', () =>
         consumerGroup.close(true, (error) =>
-          this.logger.error(
-            'Error closing Kafka consumer group on process exit',
-            error,
-          ),
+          this.logger.error('Error closing Kafka consumer group on process exit', error),
         ),
       );
     },

@@ -31,16 +31,7 @@ class OrdersService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: [
-        '_id',
-        'customerId',
-        'product',
-        'quantity',
-        'price',
-        'created',
-        'updated',
-        'state',
-      ],
+      fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
       model: mongoose.model(
         'Order',
         new mongoose.Schema({
@@ -64,8 +55,7 @@ class OrdersService extends Service {
       ),
 
       settings: {
-        bootstrapServer:
-          process.env.ORDERS_BOOTSTRAP_SERVER || 'localhost:9092',
+        bootstrapServer: process.env.ORDERS_BOOTSTRAP_SERVER || 'localhost:9092',
         ordersTopic: process.env.ORDERS_TOPIC || 'orders',
       },
 
@@ -127,10 +117,7 @@ class OrdersService extends Service {
 
   // Private methods
   updateOrderState(ctx: ContextWithOrder, id: string, state: string) {
-    return this.sendEvent(
-      { id, state, updated: Date.now() },
-      OrderEventType.ORDER_UPDATED,
-    );
+    return this.sendEvent({ id, state, updated: Date.now() }, OrderEventType.ORDER_UPDATED);
   }
 
   /**
@@ -190,13 +177,7 @@ class OrdersService extends Service {
   handleMessage = (error: any, message: string): void => {
     this.logger.debug(message);
     if (error) {
-      Promise.reject(
-        new MoleculerError(
-          `${error.message} ${error.detail}`,
-          500,
-          'CONSUMER_MESSAGE_ERROR',
-        ),
-      );
+      Promise.reject(new MoleculerError(`${error.message} ${error.detail}`, 500, 'CONSUMER_MESSAGE_ERROR'));
     }
     this.processEvent(JSON.parse(message));
   };
@@ -204,9 +185,7 @@ class OrdersService extends Service {
   serviceStarted(): Promise<void> {
     this.logger.debug(this.settings);
 
-    this.startKafkaProducer(this.settings.bootstrapServer, (error) =>
-      this.logger.error(error),
-    );
+    this.startKafkaProducer(this.settings.bootstrapServer, (error) => this.logger.error(error));
 
     // Start the Kafka consumer to read messages from the topic
     // to be sent to the Slack channel

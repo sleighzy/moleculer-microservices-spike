@@ -31,8 +31,7 @@ class EmailerService extends Service {
           pass: process.env.SMTP_PASS,
         },
         kafka: {
-          bootstrapServer:
-            process.env.EMAILER_BOOTSTRAP_SERVER || 'localhost:9092',
+          bootstrapServer: process.env.EMAILER_BOOTSTRAP_SERVER || 'localhost:9092',
           ordersTopic: process.env.EMAILER_ORDERS_TOPIC || 'orders',
         },
       },
@@ -77,10 +76,7 @@ class EmailerService extends Service {
         // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
         // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
         // Preview only available when sending through an Ethereal account
-        this.logger.debug(
-          'Preview URL: %s',
-          nodemailer.getTestMessageUrl(info),
-        );
+        this.logger.debug('Preview URL: %s', nodemailer.getTestMessageUrl(info));
 
         resolve(nodemailer.getTestMessageUrl(info));
       });
@@ -107,13 +103,7 @@ class EmailerService extends Service {
 
   handleMessage = (error: any, message: string): void => {
     if (error) {
-      Promise.reject(
-        new MoleculerError(
-          `${error.message} ${error.detail}`,
-          500,
-          'CONSUMER_MESSAGE_ERROR',
-        ),
-      );
+      Promise.reject(new MoleculerError(`${error.message} ${error.detail}`, 500, 'CONSUMER_MESSAGE_ERROR'));
     }
     this.processEvent(JSON.parse(message));
   };

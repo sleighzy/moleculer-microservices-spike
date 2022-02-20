@@ -56,8 +56,7 @@ class UsersService extends Service {
 
         jwtSecret: process.env.JWT_SECRET || 'jwt-secret-string',
         kafka: {
-          bootstrapServer:
-            process.env.USERS_BOOTSTRAP_SERVER || 'localhost:9092',
+          bootstrapServer: process.env.USERS_BOOTSTRAP_SERVER || 'localhost:9092',
           usersTopic: process.env.USERS_TOPIC || 'users',
         },
       },
@@ -146,18 +145,14 @@ class UsersService extends Service {
   async getUser(ctx: ContextWithUser): Promise<User> {
     const { username } = ctx.params;
     this.logger.debug('getUser:', username);
-    return this.retrieveUser(ctx, { username }).then((user) =>
-      ctx.call('users.get', { id: user._id }),
-    );
+    return this.retrieveUser(ctx, { username }).then((user) => ctx.call('users.get', { id: user._id }));
   }
 
   async getUserByCustomerId(ctx: ContextWithCustomer): Promise<User> {
     const { customerId } = ctx.params;
     this.logger.debug('getUserByCustomerId:', customerId);
 
-    return this.retrieveUser(ctx, { customerId }).then((user) =>
-      ctx.call('users.get', { id: user._id }),
-    );
+    return this.retrieveUser(ctx, { customerId }).then((user) => ctx.call('users.get', { id: user._id }));
   }
 
   async createUser(ctx: ContextWithUser): Promise<UserIdentity> {
@@ -191,12 +186,9 @@ class UsersService extends Service {
 
     if (username !== ctx.params.username) {
       return Promise.reject(
-        new MoleculerError(
-          'User in request body does not match.',
-          400,
-          'DOES_NOT_MATCH',
-          [{ field: 'username', message: 'does not match' }],
-        ),
+        new MoleculerError('User in request body does not match.', 400, 'DOES_NOT_MATCH', [
+          { field: 'username', message: 'does not match' },
+        ]),
       );
     }
 
@@ -226,26 +218,15 @@ class UsersService extends Service {
     const users: User[] = await ctx.call('users.find', { query: criteria });
     if (!users.length) {
       return Promise.reject(
-        new MoleculerError(
-          `User not found for criteria '${JSON.stringify(criteria)}'`,
-          404,
-          'NOT_FOUND',
-          [{ field: `${JSON.stringify(criteria)}`, message: 'is not found' }],
-        ),
+        new MoleculerError(`User not found for criteria '${JSON.stringify(criteria)}'`, 404, 'NOT_FOUND', [
+          { field: `${JSON.stringify(criteria)}`, message: 'is not found' },
+        ]),
       );
     }
     return users[0];
   }
 
-  transformUser({
-    user,
-    withToken,
-    token,
-  }: {
-    user: User;
-    withToken: boolean;
-    token: string;
-  }): UserIdentity {
+  transformUser({ user, withToken, token }: { user: User; withToken: boolean; token: string }): UserIdentity {
     const identity: UserIdentity = user;
     // TODO: add extra information to user object from identity source
     if (withToken) {
@@ -255,11 +236,7 @@ class UsersService extends Service {
   }
 
   generateToken(user: User): string {
-    return jwt.sign(
-      { id: user._id, username: user.username },
-      this.settings.jwtSecret,
-      { expiresIn: '60m' },
-    );
+    return jwt.sign({ id: user._id, username: user.username }, this.settings.jwtSecret, { expiresIn: '60m' });
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -300,9 +277,7 @@ class UsersService extends Service {
   // Event handlers
 
   serviceStarted(): Promise<void> {
-    this.startKafkaProducer(this.settings.kafka.bootstrapServer, (error) =>
-      this.logger.error(error),
-    );
+    this.startKafkaProducer(this.settings.kafka.bootstrapServer, (error) => this.logger.error(error));
 
     this.logger.debug('Users service started.');
 
