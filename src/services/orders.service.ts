@@ -83,9 +83,12 @@ class OrdersService extends Service {
     });
   }
 
-  submitOrder(ctx: ContextWithOrder) {
+  async submitOrder(ctx: ContextWithOrder) {
     const { customerId, product, quantity, price } = ctx.params.order;
     this.logger.debug('Submit Order:', customerId, product, quantity, price);
+
+    // Reserve the requested inventory before creating the order.
+    await ctx.call('inventory.reserve', { product, quantity });
 
     const order = {
       customerId,

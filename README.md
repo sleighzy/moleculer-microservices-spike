@@ -320,8 +320,8 @@ Listeners - Explained] for a good explanation, diagrams, and examples of this.
 
 ### Clearing bad messages from Kafka topics
 
-// The consumer group id consists of the prefix 'moleculer-', the name of the
-service that // this mixin is being merged into, and the topic being consumed.
+The consumer group id consists of the prefix 'moleculer-', the name of the
+service that this mixin is being merged into, and the topic being consumed.
 groupId: `moleculer-${this.name}-${topic}`,
 
 ```console
