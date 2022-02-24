@@ -4,7 +4,14 @@ import * as DbService from 'moleculer-db';
 import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
 import KafkaService from '../mixins/kafka.mixin';
-import { InventoryEvent, InventoryEventType, InventoryItem, InventoryQuery, InventoryState } from '../types/inventory';
+import {
+  InventoryEvent,
+  InventoryEventType,
+  InventoryItem,
+  InventoryItemsResult,
+  InventoryQuery,
+  InventoryState,
+} from '../types/inventory';
 
 interface ContextWithInventory extends Context {
   params: {
@@ -98,39 +105,35 @@ class InventoryService extends Service {
     });
   }
 
-  async reserveItem(ctx: ContextWithInventory): Promise<any> {
+  async reserveItem(ctx: ContextWithInventory) {
     const { product, quantity } = ctx.params;
     this.logger.debug('Reserve item:', product, quantity);
 
-    return Promise.resolve()
-      .then(() => this.getQuantity({ ctx, product, available: true }))
-      .then((available) => {
-        if (quantity > available) {
-          // Emit an event that there is no further stock available
-          this.broker.emit('inventory.insufficientStock', { product });
+    const available = await this.getQuantity({ ctx, product, available: true });
+    if (quantity > available) {
+      // Emit an event that there is no further stock available
+      this.broker.emit('inventory.insufficientStock', { product });
 
-          return Promise.reject(
-            new MoleculerError(`Not enough items available in inventory for product '${product}'.`),
-          );
-        }
-        // Retrieve "Available" items, limited by the requested quantity to reserve.
-        // This calls "inventory.list" which is the list() function from the DbService mixin.
-        // Update each item retrieved and set their state to "Reserved" while payment processing takes place.
-        return ctx.call('inventory.list', {
-          query: { product, state: InventoryState.AVAILABLE },
-          pageSize: quantity,
-        });
-      })
-      .then((res: any) =>
-        res.rows.forEach((doc) =>
-          this.updateItemState({
-            ctx,
-            item: doc._id,
-            state: InventoryState.RESERVED,
-          }),
-        ),
-      )
-      .catch((err) => this.logger.error(err));
+      throw new MoleculerError(`Not enough items available in inventory for product '${product}'.`);
+    }
+
+    // Retrieve "Available" items, limited by the requested quantity to reserve.
+    // This calls "inventory.list" which is the list() function from the DbService mixin.
+    // Update each item retrieved and set their state to "Reserved" while payment processing takes place.
+    const result: InventoryItemsResult = await ctx.call('inventory.list', {
+      query: { product, state: InventoryState.AVAILABLE },
+      pageSize: quantity,
+    });
+    const availableItems = result.rows ?? [];
+    this.logger.debug('Available items:', availableItems);
+
+    availableItems.forEach((item) =>
+      this.updateItemState({
+        ctx,
+        item,
+        state: InventoryState.RESERVED,
+      }),
+    );
   }
 
   async shipItem(ctx: ContextWithInventory): Promise<any> {
@@ -156,7 +159,7 @@ class InventoryService extends Service {
     return item;
   }
 
-  async getQuantity({
+  getQuantity({
     ctx,
     product,
     available,
@@ -164,7 +167,7 @@ class InventoryService extends Service {
     ctx: ContextWithInventory;
     product: string;
     available: boolean;
-  }): Promise<unknown> {
+  }): Promise<number> {
     this.logger.debug('Get quantity:', product, available);
     // Filter for "Available" items only, otherwise return all.
     const query: InventoryQuery = {
@@ -186,7 +189,7 @@ class InventoryService extends Service {
   }): Promise<any> {
     this.logger.debug('Update item state:', item.id, state);
 
-    return this.sendEvent({ item, eventType: InventoryEventType.ITEM_UPDATED });
+    return this.sendEvent({ item: { ...item, state }, eventType: InventoryEventType.ITEM_UPDATED });
   }
 
   /**
