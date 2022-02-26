@@ -167,6 +167,7 @@ http http://moleculer-127-0-0-1.nip.io/api/auth/login username='bob' password='s
 ```json
 {
     "_id": "5fe97aac26c85f0014d789c7",
+    "customerId" :"bcb456ff-9ff4-4904-be3f-f3f3cf6ba367",
     "email": "bob@example.com",
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.....",
     "username": "bob"
@@ -189,6 +190,7 @@ http http://moleculer-127-0-0-1.nip.io/api/users/bob \
 {
     "__v": 0,
     "_id": "5fe97aac26c85f0014d789c7",
+    "customerId" :"bcb456ff-9ff4-4904-be3f-f3f3cf6ba367",
     "created": "2020-12-28T06:26:52.631Z",
     "email": "bob@example.com",
     "password": "$2b$10$/XSiWYRmwSEP..koLhmx3eCGGm2JB8Kghi9K9Na513O8vSX5OcRH.",
@@ -228,7 +230,14 @@ insertion of this item.
 ```json
 {
   "eventType": "ItemAdded",
-  "item": { "product": "Raspberry Pi", "price": 145, "state": "Available" }
+  "item": {
+    "productId": "272fa38d-c5b1-4835-9e0f-1597409ca987",
+    "product": "Raspberry Pi 4b",
+    "price": 145,
+    "state": "Available",
+    "created": 1645839728241,
+    "updated": 1645839728241
+  }
 }
 ```
 
@@ -243,18 +252,14 @@ This deployment uses the online fake SMTP service [Ethereal] for testing the
 sending of emails. Create an account on that site and then set the `SMTP_USER`
 and `SMTP_PASS` to match the account details you are provided.
 
-Run the below command to use the [kafkacat] utility to publish an order event.
-In the example below the customer id of `12345` should be updated with the value
-from your user account. You can get the list of users and their customer
-identifier by making an authenticated API call to the
-<http://moleculer-127-0-0-1.nip.io/api/users> endpoint.
+Run the below command to make an order for 1 Raspberry Pi 4b. In the example below
+the customer id of `12345` should be updated with the value from your user account.
+You can get the list of users and their customer ids by making an authenticated API
+call to the the `/api/users` endpoint. You can get the list of inventory items from
+the `/api/inventory` endpoint.
 
 ```console
-echo '{ "eventType": "OrderCreated", "order": { "customerId": 12345, "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }' \
-  | kcat \
-  -P \
-  -b localhost:9092 \
-  -t orders
+echo '{ "order": { "customerId": "12345", "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00 } }' | http POST http://moleculer-127-0-0-1.nip.io/api/orders
 ```
 
 An email message will be created and viewable in your Ethereal account.
@@ -301,7 +306,7 @@ environment variables for the `kafka` service:
 KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
 # Internal listener for communication to brokers from within the
 # Docker network, external listener for accessing from Docker host.
-KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://192.168.68.104:9092
+KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
 ```
 
 The `INTERNAL` listener, `kafka:29092`, is used by the services defined within

@@ -100,9 +100,10 @@ class ApiService extends Service {
             .then((user: User) => {
               if (user) {
                 this.logger.debug('Authenticated via JWT: ', user.username);
-                const { id, username, email } = user;
+                const { id, customerId, username, email } = user;
                 ctx.meta.user = {
                   id,
+                  customerId,
                   username,
                   email,
                 };

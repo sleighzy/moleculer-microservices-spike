@@ -1,6 +1,9 @@
+import { UUID } from './types';
+
 export interface User {
   _id?: string;
   id: string;
+  customerId: UUID;
   username: string;
   email: string;
   password?: string;

@@ -5,6 +5,7 @@ import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import { User, UserEvent, UserEventType, UserIdentity } from '../types/users';
 import KafkaService from '../mixins/kafka.mixin';
 
@@ -37,14 +38,14 @@ class UsersService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'username', 'email'],
+      fields: ['_id', 'customerId', 'username', 'email'],
       model: mongoose.model(
         'User',
         new mongoose.Schema({
-          customerId: { type: Number },
-          username: { type: String },
-          password: { type: String },
-          email: { type: String },
+          customerId: { type: String, required: true },
+          username: { type: String, required: true },
+          password: { type: String, required: true },
+          email: { type: String, required: true },
           created: { type: Date, default: Date.now },
           updated: { type: Date, default: Date.now },
         }),
@@ -120,7 +121,7 @@ class UsersService extends Service {
         // can be called by the brokers
         getUserByCustomerId: {
           params: {
-            customerId: 'number',
+            customerId: 'string',
           },
           handler: this.getUserByCustomerId,
         },
@@ -152,7 +153,12 @@ class UsersService extends Service {
     const { customerId } = ctx.params;
     this.logger.debug('getUserByCustomerId:', customerId);
 
-    return this.retrieveUser(ctx, { customerId }).then((user) => ctx.call('users.get', { id: user._id }));
+    const user: User = await this.retrieveUser(ctx, { customerId });
+    if (!user) {
+      return Promise.reject(new MoleculerError(`User not found for customer Id: ${customerId}`, 404, 'NOT_FOUND'));
+    }
+
+    return ctx.call('users.get', { id: user._id });
   }
 
   async createUser(ctx: ContextWithUser): Promise<UserIdentity> {
@@ -169,7 +175,7 @@ class UsersService extends Service {
     }
 
     const userEntity = {
-      customerId: Date.now(),
+      customerId: uuidv4(),
       username,
       email,
       password: bcrypt.hashSync(password, 10),
