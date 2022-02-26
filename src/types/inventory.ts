@@ -1,3 +1,5 @@
+import { UUID } from './types';
+
 export enum InventoryState {
   AVAILABLE = 'Available',
   NOT_AVAILABLE = 'Not Available',
@@ -7,9 +9,10 @@ export enum InventoryState {
 
 export interface InventoryItem {
   _id?: string;
-  id: number;
+  productId: UUID;
   product: string;
   state: InventoryState;
+  created: number;
   updated: number;
 }
 

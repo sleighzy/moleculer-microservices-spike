@@ -3,6 +3,7 @@ import { MoleculerError } from 'moleculer/src/errors';
 import * as DbService from 'moleculer-db';
 import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 import KafkaService from '../mixins/kafka.mixin';
 import { OrderEvent, OrderEventType, OrderState } from '../types/orders';
 
@@ -31,11 +32,12 @@ class OrdersService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
+      fields: ['_id', 'orderId', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
       model: mongoose.model(
         'Order',
         new mongoose.Schema({
-          customerId: { type: Number },
+          orderId: { type: String, required: true },
+          customerId: { type: String, required: true },
           product: { type: String },
           quantity: { type: Number },
           price: { type: Number },
@@ -91,6 +93,7 @@ class OrdersService extends Service {
     await ctx.call('inventory.reserve', { product, quantity });
 
     const order = {
+      orderId: uuidv4(),
       customerId,
       product,
       quantity,

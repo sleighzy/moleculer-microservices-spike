@@ -3,6 +3,7 @@ import { MoleculerError } from 'moleculer/src/errors';
 import * as DbService from 'moleculer-db';
 import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 import KafkaService from '../mixins/kafka.mixin';
 import {
   InventoryEvent,
@@ -38,11 +39,12 @@ class InventoryService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'product', 'price', 'state', 'created', 'updated'],
+      fields: ['_id', 'productId', 'product', 'price', 'state', 'created', 'updated'],
       model: mongoose.model(
         'Product',
         new mongoose.Schema({
-          product: { type: String },
+          productId: { type: String, required: true },
+          product: { type: String, required: true },
           price: { type: Number },
           state: {
             type: String,
@@ -92,10 +94,11 @@ class InventoryService extends Service {
     this.logger.debug('Add item:', product, price);
 
     const newProduct = {
-      id: Math.random(),
+      productId: uuidv4(),
       product,
       price,
       state: InventoryState.AVAILABLE,
+      created: Date.now(),
       updated: Date.now(),
     };
 
@@ -187,7 +190,7 @@ class InventoryService extends Service {
     item: InventoryItem;
     state: InventoryState;
   }): Promise<any> {
-    this.logger.debug('Update item state:', item.id, state);
+    this.logger.debug('Update item state:', item.productId, state);
 
     return this.sendEvent({ item: { ...item, state }, eventType: InventoryEventType.ITEM_UPDATED });
   }
@@ -236,7 +239,7 @@ class InventoryService extends Service {
 
       this.sendMessage(
         this.settings.inventoryTopic,
-        { key: item.product, value: JSON.stringify({ eventType, item }) },
+        { key: item.productId, value: JSON.stringify({ eventType, item }) },
         (error, result) => {
           if (error) {
             reject(error);

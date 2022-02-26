@@ -1,3 +1,5 @@
+import { UUID } from './types';
+
 export interface Message {
   from: string;
   to: string;
@@ -14,7 +16,7 @@ export enum OrderEventType {
 export interface OrderEvent {
   eventType: OrderEventType;
   order: {
-    customerId: string;
+    customerId: UUID;
     product: string;
     quantity: number;
   };

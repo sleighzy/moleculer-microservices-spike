@@ -1,3 +1,5 @@
+import { UUID } from './types';
+
 export enum OrderEventType {
   ORDER_CREATED = 'OrderCreated',
   ORDER_UPDATED = 'OrderUpdated',
@@ -11,11 +13,15 @@ export enum OrderState {
   REJECTED = 'Rejected',
 }
 
+export interface Order {
+  orderId: UUID;
+  customerId: UUID;
+  productId: UUID;
+  product: string;
+  quantity: number;
+}
+
 export interface OrderEvent {
   eventType: OrderEventType;
-  order: {
-    customerId: string;
-    product: string;
-    quantity: number;
-  };
+  order: Order;
 }
