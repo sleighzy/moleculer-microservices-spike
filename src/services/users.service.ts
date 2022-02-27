@@ -19,12 +19,6 @@ interface ContextWithUser extends Context {
   };
 }
 
-interface ContextWithCustomer extends Context {
-  params: {
-    customerId: string;
-  };
-}
-
 class UsersService extends Service {
   constructor(broker: ServiceBroker) {
     super(broker);
@@ -38,11 +32,11 @@ class UsersService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'customerId', 'username', 'email'],
+      fields: ['_id', 'username', 'email'],
       model: mongoose.model(
         'User',
-        new mongoose.Schema({
-          customerId: { type: String, required: true },
+        new mongoose.Schema<User>({
+          _id: { type: String, default: uuidv4 },
           username: { type: String, required: true },
           password: { type: String, required: true },
           email: { type: String, required: true },
@@ -116,15 +110,6 @@ class UsersService extends Service {
           },
           handler: this.deleteUser,
         },
-
-        // This is not exposed as a REST endpoint but as an action that
-        // can be called by the brokers
-        getUserByCustomerId: {
-          params: {
-            customerId: 'string',
-          },
-          handler: this.getUserByCustomerId,
-        },
       },
 
       events: {
@@ -151,25 +136,14 @@ class UsersService extends Service {
     if (!user) {
       throw new MoleculerError(`User not found for username: ${username}`, 404, 'NOT_FOUND');
     }
+    this.logger.debug('Found user:', user);
 
-    return ctx.call('users.get', { id: user._id });
-  }
-
-  async getUserByCustomerId(ctx: ContextWithCustomer): Promise<User> {
-    const { customerId } = ctx.params;
-    this.logger.debug('getUserByCustomerId:', customerId);
-
-    const user: User = await this.retrieveUser(ctx, { customerId });
-    if (!user) {
-      throw new MoleculerError(`User not found for customer Id: ${customerId}`, 404, 'NOT_FOUND');
-    }
-
-    return ctx.call('users.get', { id: user._id });
+    return user;
   }
 
   async createUser(ctx: ContextWithUser): Promise<UserIdentity> {
     const { username, email, password } = ctx.params.user;
-    this.logger.debug('createUser:', username);
+    this.logger.debug('createUser:', { username, email });
 
     const users: User[] = await ctx.call('users.find', { query: { username } });
     if (users.length) {
@@ -178,8 +152,8 @@ class UsersService extends Service {
       ]);
     }
 
-    const userEntity = {
-      customerId: uuidv4(),
+    const userEntity: User = {
+      _id: uuidv4(),
       username,
       email,
       password: bcrypt.hashSync(password, 10),
@@ -190,7 +164,6 @@ class UsersService extends Service {
 
     this.logger.info('Created user', {
       id: user._id,
-      customerId: user.customerId,
       username: user.username,
       email: user.email,
     });
@@ -208,16 +181,15 @@ class UsersService extends Service {
       ]);
     }
 
-    const user = await this.retrieveUser(ctx, { username });
+    const user = await this.getUser(ctx);
     await ctx.call('users.update', {
-      id: user._id,
+      _id: user._id,
       email,
       updated: Date.now(),
     });
 
     this.logger.info('Updated user', {
       id: user._id,
-      customerId: user.customerId,
       username: user.username,
       email: user.email,
     });
@@ -227,10 +199,10 @@ class UsersService extends Service {
     const { username } = ctx.params;
     this.logger.debug('deleteUser:', username);
 
-    const user = await this.retrieveUser(ctx, { username });
+    const user = await this.getUser(ctx);
     await ctx.call('users.remove', { id: user._id });
 
-    this.logger.info('Deleted user', { id: user._id, customerId: user.customerId, username: user.username });
+    this.logger.info('Deleted user', { id: user._id, username });
   }
 
   // Private methods.
@@ -284,7 +256,7 @@ class UsersService extends Service {
           if (error) {
             reject(error);
           } else {
-            this.logger.info('Result:', result);
+            this.logger.debug('Result:', result);
             resolve(result);
           }
         },

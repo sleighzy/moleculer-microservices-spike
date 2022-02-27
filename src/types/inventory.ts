@@ -8,9 +8,9 @@ export enum InventoryState {
 }
 
 export interface InventoryItem {
-  _id?: string;
-  productId: UUID;
+  _id: UUID;
   product: string;
+  price: number;
   state: InventoryState;
   created: number;
   updated: number;

@@ -87,8 +87,8 @@ class EmailerService extends Service {
     if (event.eventType === OrderEventType.ORDER_CREATED) {
       this.logger.debug(event);
       const { customerId, product, quantity } = event.order;
-      const user: User = await this.broker.call('users.getUserByCustomerId', {
-        customerId,
+      const user: User = await this.broker.call('users.get', {
+        id: customerId,
       });
 
       this.sendEmail({

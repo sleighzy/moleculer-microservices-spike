@@ -5,7 +5,7 @@ import MongooseDbAdapter from 'moleculer-db-adapter-mongoose';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import KafkaService from '../mixins/kafka.mixin';
-import { OrderEvent, OrderEventType, OrderState } from '../types/orders';
+import { Order, OrderEvent, OrderEventType, OrderState } from '../types/orders';
 
 interface ContextWithOrder extends Context {
   params: {
@@ -32,11 +32,11 @@ class OrdersService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'orderId', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
+      fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
       model: mongoose.model(
         'Order',
-        new mongoose.Schema({
-          orderId: { type: String, required: true },
+        new mongoose.Schema<Order>({
+          _id: { type: String, default: uuidv4 },
           customerId: { type: String, required: true },
           product: { type: String },
           quantity: { type: Number },
@@ -90,13 +90,13 @@ class OrdersService extends Service {
     this.logger.debug('Submit Order:', customerId, product, quantity, price);
 
     // Validate a customer exists with this identifier
-    await this.broker.call('users.getUserByCustomerId', { customerId });
+    await this.broker.call('users.get', { id: customerId });
 
     // Reserve the requested inventory before creating the order.
     await ctx.call('inventory.reserve', { product, quantity });
 
     const order = {
-      orderId: uuidv4(),
+      _id: uuidv4(),
       customerId,
       product,
       quantity,
@@ -126,7 +126,7 @@ class OrdersService extends Service {
 
   // Private methods
   updateOrderState(ctx: ContextWithOrder, id: string, state: string) {
-    return this.sendEvent({ id, state, updated: Date.now() }, OrderEventType.ORDER_UPDATED);
+    return this.sendEvent({ _id: id, state, updated: Date.now() }, OrderEventType.ORDER_UPDATED);
   }
 
   /**

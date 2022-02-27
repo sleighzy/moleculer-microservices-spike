@@ -14,7 +14,7 @@ export enum OrderState {
 }
 
 export interface Order {
-  orderId: UUID;
+  _id: UUID;
   customerId: UUID;
   productId: UUID;
   product: string;
