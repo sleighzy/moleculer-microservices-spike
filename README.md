@@ -166,11 +166,10 @@ http http://moleculer-127-0-0-1.nip.io/api/auth/login username='bob' password='s
 
 ```json
 {
-    "_id": "5fe97aac26c85f0014d789c7",
-    "customerId" :"bcb456ff-9ff4-4904-be3f-f3f3cf6ba367",
-    "email": "bob@example.com",
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.....",
-    "username": "bob"
+  "_id": "bcb456ff-9ff4-4904-be3f-f3f3cf6ba367",
+  "email": "bob@example.com",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.....",
+  "username": "bob"
 }
 ```
 
@@ -188,14 +187,13 @@ http http://moleculer-127-0-0-1.nip.io/api/users/bob \
 
 ```json
 {
-    "__v": 0,
-    "_id": "5fe97aac26c85f0014d789c7",
-    "customerId" :"bcb456ff-9ff4-4904-be3f-f3f3cf6ba367",
-    "created": "2020-12-28T06:26:52.631Z",
-    "email": "bob@example.com",
-    "password": "$2b$10$/XSiWYRmwSEP..koLhmx3eCGGm2JB8Kghi9K9Na513O8vSX5OcRH.",
-    "updated": "2020-12-28T06:26:52.631Z",
-    "username": "bob"
+  "__v": 0,
+  "_id": "bcb456ff-9ff4-4904-be3f-f3f3cf6ba367",
+  "created": "2020-12-28T06:26:52.631Z",
+  "email": "bob@example.com",
+  "password": "$2b$10$/XSiWYRmwSEP..koLhmx3eCGGm2JB8Kghi9K9Na513O8vSX5OcRH.",
+  "updated": "2020-12-28T06:26:52.631Z",
+  "username": "bob"
 }
 ```
 
@@ -231,6 +229,7 @@ insertion of this item.
 {
   "eventType": "ItemAdded",
   "item": {
+    "_id": "a65e4d38-1666-491f-a127-9b01bf6311e7",
     "product": "Raspberry Pi 4b",
     "price": 145,
     "state": "Available",
@@ -251,11 +250,11 @@ This deployment uses the online fake SMTP service [Ethereal] for testing the
 sending of emails. Create an account on that site and then set the `SMTP_USER`
 and `SMTP_PASS` to match the account details you are provided.
 
-Run the below command to make an order for 1 Raspberry Pi 4b. In the example below
-the customer id of `12345` should be updated with the value from your user account.
-You can get the list of users and their customer ids by making an authenticated API
-call to the the `/api/users` endpoint. You can get the list of inventory items from
-the `/api/inventory` endpoint.
+Run the below command to make an order for 1 Raspberry Pi 4b. In the example
+below the customer id of `12345` should be updated with the value from your user
+account. You can get the list of users and their customer ids by making an
+authenticated API call to the the `/api/users` endpoint. You can get the list of
+inventory items from the `/api/inventory` endpoint.
 
 ```console
 echo '{ "order": { "customerId": "12345", "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00 } }' | http POST http://moleculer-127-0-0-1.nip.io/api/orders
@@ -337,8 +336,8 @@ groupId: `moleculer-${this.name}-${topic}`,
 ❯ kcat -b localhost:9092 -G moleculer-emailer-orders orders
 % Waiting for group rebalance
 % Group moleculer-emailer-orders rebalanced (memberid rdkafka-525bc97b-f3c3-42c1-b605-cd39801e0802): assigned: orders [0]
-{ "eventType": "OrderCreated", "order": { "customerId": 61026a41abc3d40013fdd8d0 , "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }
-{ "eventType": "OrderCreated", "order": { "customerId": "61026a41abc3d40013fdd8d0", "product": "Raspberry Pi 3", "quantity": 1, "price": 99.00, "state": "Pending" } }
+{ "eventType": "OrderCreated", "order": { "customerId": bcb456ff-9ff4-4904-be3f-f3f3cf6ba367 , "product": "Raspberry Pi 4b", "quantity": 1, "price": 145.00, "state": "Pending" } }
+{ "eventType": "OrderCreated", "order": { "customerId": "bcb456ff-9ff4-4904-be3f-f3f3cf6ba367", "product": "Raspberry Pi 3", "quantity": 1, "price": 99.00, "state": "Pending" } }
 % Reached end of topic orders [0] at offset 2
 ^C% Group moleculer-emailer-orders rebalanced (memberid rdkafka-525bc97b-f3c3-42c1-b605-cd39801e0802): revoked: orders [0]
 ```

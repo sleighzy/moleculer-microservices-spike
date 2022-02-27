@@ -9,3 +9,7 @@ overrides:
       - '*.yaml'
     options:
       proseWrap: 'never'
+  - files:
+      - '*.md'
+    options:
+      printWidth: 80
