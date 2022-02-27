@@ -146,7 +146,13 @@ class UsersService extends Service {
   async getUser(ctx: ContextWithUser): Promise<User> {
     const { username } = ctx.params;
     this.logger.debug('getUser:', username);
-    return this.retrieveUser(ctx, { username }).then((user) => ctx.call('users.get', { id: user._id }));
+
+    const user = await this.retrieveUser(ctx, { username });
+    if (!user) {
+      throw new MoleculerError(`User not found for username: ${username}`, 404, 'NOT_FOUND');
+    }
+
+    return ctx.call('users.get', { id: user._id });
   }
 
   async getUserByCustomerId(ctx: ContextWithCustomer): Promise<User> {
@@ -155,7 +161,7 @@ class UsersService extends Service {
 
     const user: User = await this.retrieveUser(ctx, { customerId });
     if (!user) {
-      return Promise.reject(new MoleculerError(`User not found for customer Id: ${customerId}`, 404, 'NOT_FOUND'));
+      throw new MoleculerError(`User not found for customer Id: ${customerId}`, 404, 'NOT_FOUND');
     }
 
     return ctx.call('users.get', { id: user._id });
@@ -167,11 +173,9 @@ class UsersService extends Service {
 
     const users: User[] = await ctx.call('users.find', { query: { username } });
     if (users.length) {
-      return Promise.reject(
-        new MoleculerError('User already exists.', 409, 'ALREADY_EXISTS', [
-          { field: 'username', message: 'already exists' },
-        ]),
-      );
+      throw new MoleculerError(`User ${username} already exists.`, 409, 'ALREADY_EXISTS', [
+        { field: 'username', message: 'already exists' },
+      ]);
     }
 
     const userEntity = {
@@ -183,19 +187,25 @@ class UsersService extends Service {
 
     // This calls "users.insert" which is the insert() function from the DbService mixin.
     const user: User = await ctx.call('users.insert', { entity: userEntity });
+
+    this.logger.info('Created user', {
+      id: user._id,
+      customerId: user.customerId,
+      username: user.username,
+      email: user.email,
+    });
+
     return this.transformUser({ user, withToken: true, token: ctx.meta.token });
   }
 
-  async updateUser(ctx: ContextWithUser): Promise<User> {
+  async updateUser(ctx: ContextWithUser): Promise<void> {
     const { username, email } = ctx.params.user;
     this.logger.debug('updateUser', username);
 
     if (username !== ctx.params.username) {
-      return Promise.reject(
-        new MoleculerError('User in request body does not match.', 400, 'DOES_NOT_MATCH', [
-          { field: 'username', message: 'does not match' },
-        ]),
-      );
+      throw new MoleculerError('User in request body does not match.', 400, 'DOES_NOT_MATCH', [
+        { field: 'username', message: 'does not match' },
+      ]);
     }
 
     const user = await this.retrieveUser(ctx, { username });
@@ -205,7 +215,12 @@ class UsersService extends Service {
       updated: Date.now(),
     });
 
-    this.logger.info('Updated user', user._id, user.username);
+    this.logger.info('Updated user', {
+      id: user._id,
+      customerId: user.customerId,
+      username: user.username,
+      email: user.email,
+    });
   }
 
   async deleteUser(ctx: ContextWithUser) {
@@ -215,19 +230,16 @@ class UsersService extends Service {
     const user = await this.retrieveUser(ctx, { username });
     await ctx.call('users.remove', { id: user._id });
 
-    this.logger.info('Deleted user', user._id, user.username);
+    this.logger.info('Deleted user', { id: user._id, customerId: user.customerId, username: user.username });
   }
 
   // Private methods.
 
-  async retrieveUser(ctx: Context, criteria): Promise<User> {
+  async retrieveUser(ctx: Context, criteria): Promise<User | undefined> {
     const users: User[] = await ctx.call('users.find', { query: criteria });
     if (!users.length) {
-      return Promise.reject(
-        new MoleculerError(`User not found for criteria '${JSON.stringify(criteria)}'`, 404, 'NOT_FOUND', [
-          { field: `${JSON.stringify(criteria)}`, message: 'is not found' },
-        ]),
-      );
+      this.logger.info('User not found', criteria);
+      return undefined;
     }
     return users[0];
   }
