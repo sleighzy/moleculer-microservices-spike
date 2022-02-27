@@ -89,6 +89,9 @@ class OrdersService extends Service {
     const { customerId, product, quantity, price } = ctx.params.order;
     this.logger.debug('Submit Order:', customerId, product, quantity, price);
 
+    // Validate a customer exists with this identifier
+    await this.broker.call('users.getUserByCustomerId', { customerId });
+
     // Reserve the requested inventory before creating the order.
     await ctx.call('inventory.reserve', { product, quantity });
 
