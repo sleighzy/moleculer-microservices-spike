@@ -19,7 +19,7 @@ interface ContextWithInventory extends Context {
     id: string;
     item: {
       product: string;
-      price: string;
+      price: number;
     };
     product: string;
     quantity: number;
@@ -39,11 +39,11 @@ class InventoryService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'productId', 'product', 'price', 'state', 'created', 'updated'],
+      fields: ['_id', 'product', 'price', 'state', 'created', 'updated'],
       model: mongoose.model(
         'Product',
-        new mongoose.Schema({
-          productId: { type: String, required: true },
+        new mongoose.Schema<InventoryItem>({
+          _id: { type: String, default: uuidv4 },
           product: { type: String, required: true },
           price: { type: Number },
           state: {
@@ -93,8 +93,8 @@ class InventoryService extends Service {
     const { product, price } = ctx.params.item;
     this.logger.debug('Add item:', product, price);
 
-    const newProduct = {
-      productId: uuidv4(),
+    const newProduct: InventoryItem = {
+      _id: uuidv4(),
       product,
       price,
       state: InventoryState.AVAILABLE,
@@ -190,7 +190,7 @@ class InventoryService extends Service {
     item: InventoryItem;
     state: InventoryState;
   }): Promise<any> {
-    this.logger.debug('Update item state:', item.productId, state);
+    this.logger.debug('Update item state:', { id: item._id, product: item.product, state });
 
     return this.sendEvent({ item: { ...item, state }, eventType: InventoryEventType.ITEM_UPDATED });
   }
@@ -239,7 +239,7 @@ class InventoryService extends Service {
 
       this.sendMessage(
         this.settings.inventoryTopic,
-        { key: item.productId, value: JSON.stringify({ eventType, item }) },
+        { key: item._id, value: JSON.stringify({ eventType, item }) },
         (error, result) => {
           if (error) {
             reject(error);

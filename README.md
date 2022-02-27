@@ -231,7 +231,6 @@ insertion of this item.
 {
   "eventType": "ItemAdded",
   "item": {
-    "productId": "272fa38d-c5b1-4835-9e0f-1597409ca987",
     "product": "Raspberry Pi 4b",
     "price": 145,
     "state": "Available",
