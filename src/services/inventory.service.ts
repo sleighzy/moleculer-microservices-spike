@@ -39,7 +39,6 @@ class InventoryService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'product', 'price', 'state', 'created', 'updated'],
       model: mongoose.model(
         'Product',
         new mongoose.Schema<InventoryItem>({
@@ -78,7 +77,7 @@ class InventoryService extends Service {
             product: 'string',
             quantity: 'number',
           },
-          handler: this.reserveItem,
+          handler: this.reserveItems,
         },
         ship: {
           handler: this.shipItem,
@@ -108,7 +107,7 @@ class InventoryService extends Service {
     });
   }
 
-  async reserveItem(ctx: ContextWithInventory) {
+  async reserveItems(ctx: ContextWithInventory): Promise<InventoryItem[]> {
     const { product, quantity } = ctx.params;
     this.logger.debug('Reserve item:', product, quantity);
 
@@ -137,6 +136,8 @@ class InventoryService extends Service {
         state: InventoryState.RESERVED,
       }),
     );
+
+    return availableItems;
   }
 
   async shipItem(ctx: ContextWithInventory): Promise<any> {
