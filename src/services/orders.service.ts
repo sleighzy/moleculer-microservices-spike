@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import KafkaService from '../mixins/kafka.mixin';
 import { Order, OrderEvent, OrderEventType, OrderState } from '../types/orders';
+import { InventoryItem } from '../types/inventory';
 
 interface ContextWithOrder extends Context {
   params: {
@@ -32,14 +33,12 @@ class OrdersService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'customerId', 'product', 'quantity', 'price', 'created', 'updated', 'state'],
       model: mongoose.model(
         'Order',
         new mongoose.Schema<Order>({
           _id: { type: String, default: uuidv4 },
           customerId: { type: String, required: true },
-          product: { type: String },
-          quantity: { type: Number },
+          items: [{ type: String, ref: 'Product' }],
           price: { type: Number },
           state: {
             type: String,
@@ -59,6 +58,10 @@ class OrdersService extends Service {
       settings: {
         bootstrapServer: process.env.ORDERS_BOOTSTRAP_SERVER || 'localhost:9092',
         ordersTopic: process.env.ORDERS_TOPIC || 'orders',
+
+        populates: {
+          items: 'inventory.get',
+        },
       },
 
       actions: {
@@ -90,19 +93,20 @@ class OrdersService extends Service {
     this.logger.debug('Submit Order:', customerId, product, quantity, price);
 
     // Validate a customer exists with this identifier
-    await this.broker.call('users.get', { id: customerId });
+    await ctx.call('users.get', { id: customerId });
 
     // Reserve the requested inventory before creating the order.
-    await ctx.call('inventory.reserve', { product, quantity });
+    const items = ((await ctx.call('inventory.reserve', { product, quantity })) as InventoryItem[]).map(
+      (item) => item._id,
+    );
 
-    const order = {
+    const order: Order = {
       _id: uuidv4(),
       customerId,
-      product,
-      quantity,
-      price,
+      items,
       state: OrderState.PENDING,
     };
+
     return this.sendEvent(order, OrderEventType.ORDER_CREATED);
   }
 
@@ -125,8 +129,12 @@ class OrdersService extends Service {
   }
 
   // Private methods
-  updateOrderState(ctx: ContextWithOrder, id: string, state: string) {
-    return this.sendEvent({ _id: id, state, updated: Date.now() }, OrderEventType.ORDER_UPDATED);
+  async updateOrderState(ctx: ContextWithOrder, id: string, state: OrderState) {
+    const order: Order = await ctx.call('orders.get', { id });
+    if (!order) {
+      throw new MoleculerError(`No order exists for id ${id}`, 404, 'NOT_FOUND');
+    }
+    return this.sendEvent({ ...order, state, updated: Date.now() }, OrderEventType.ORDER_UPDATED);
   }
 
   /**
@@ -159,7 +167,7 @@ class OrdersService extends Service {
    * @param {String} eventType the event type
    * @returns {Promise}
    */
-  sendEvent(order: any, eventType: OrderEventType): Promise<unknown> {
+  sendEvent(order: Order, eventType: OrderEventType): Promise<unknown> {
     return new Promise((resolve, reject) => {
       if (!order) {
         reject('No order provided when sending event.');
@@ -170,7 +178,7 @@ class OrdersService extends Service {
 
       this.sendMessage(
         this.settings.ordersTopic,
-        { key: order.product, value: JSON.stringify({ eventType, order }) },
+        { key: order._id, value: JSON.stringify({ eventType, order }) },
         (error: any, result: any) => {
           if (error) {
             reject(error);

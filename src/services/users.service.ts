@@ -32,7 +32,6 @@ class UsersService extends Service {
       mixins: [DbService, KafkaService],
 
       adapter: new MongooseDbAdapter('mongodb://mongodb:27017/moleculer-db'),
-      fields: ['_id', 'username', 'email'],
       model: mongoose.model(
         'User',
         new mongoose.Schema<User>({
