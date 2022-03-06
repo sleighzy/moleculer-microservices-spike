@@ -13,6 +13,7 @@ import {
   InventoryQuery,
   InventoryState,
 } from '../types/inventory';
+import { OrderEvent, OrderState } from '../types/orders';
 
 interface ContextWithInventory extends Context {
   params: {
@@ -57,6 +58,7 @@ class InventoryService extends Service {
       settings: {
         bootstrapServer: process.env.INVENTORY_BOOTSTRAP_SERVER || 'localhost:9092',
         inventoryTopic: process.env.INVENTORY_TOPIC || 'inventory',
+        ordersTopic: process.env.ORDERS_TOPIC || 'orders',
       },
 
       actions: {
@@ -140,6 +142,15 @@ class InventoryService extends Service {
     return availableItems;
   }
 
+  async freeItems(ids) {
+    this.logger.debug('Free ids:', ids);
+    // Call the getByIds() helper method from the DbService mixin
+    // for the Mongoose adapter.
+    const items = await this.getById(ids);
+    this.logger.debug('Free items:', items);
+    items.forEach((item) => this.updateItemState({ ctx: undefined, item: item._doc, state: InventoryState.AVAILABLE }));
+  }
+
   async shipItem(ctx: ContextWithInventory): Promise<any> {
     const { id } = ctx.params;
     this.logger.debug('Ship item:', id);
@@ -187,38 +198,13 @@ class InventoryService extends Service {
     item,
     state,
   }: {
-    ctx: ContextWithInventory;
+    ctx: ContextWithInventory | undefined;
     item: InventoryItem;
     state: InventoryState;
   }): Promise<any> {
     this.logger.debug('Update item state:', { id: item._id, product: item.product, state });
 
     return this.sendEvent({ item: { ...item, state }, eventType: InventoryEventType.ITEM_UPDATED });
-  }
-
-  /**
-   * Function to consume item events from a Kafka topic and process them.
-   *
-   * @param {Object} event event containing event type and item information.
-   * @returns {Promise}
-   */
-  async processEvent(event: InventoryEvent): Promise<any> {
-    return new Promise((resolve) => {
-      const { item, eventType } = event;
-      if (eventType === InventoryEventType.ITEM_ADDED) {
-        // This calls "inventory.insert" which is the insert() function from the DbService mixin.
-        resolve(this.broker.call('inventory.insert', { entity: item }));
-      } else if (eventType === InventoryEventType.ITEM_UPDATED) {
-        // This calls "inventory.update" which is the update() function from the DbService mixin.
-        resolve(this.broker.call('inventory.update', item));
-      } else if (eventType === InventoryEventType.ITEM_REMOVED) {
-        // This calls "inventory.update" which is the remove() function from the DbService mixin.
-        resolve(this.broker.call('inventory.remove', item));
-      } else {
-        // Not an error as services may publish different event types in the future.
-        this.logger.warn('Unknown eventType:', eventType);
-      }
-    });
   }
 
   /**
@@ -253,22 +239,67 @@ class InventoryService extends Service {
     });
   }
 
-  handleMessage = (error: any, message: string): void => {
-    this.logger.debug(message);
+  /**
+   * Function to consume inventory item events from a Kafka topic and process them.
+   */
+  handleInventoryEvent = (error: any, message: string): void => {
     if (error) {
       Promise.reject(new MoleculerError(`${error.message} ${error.detail}`, 500, 'CONSUMER_MESSAGE_ERROR'));
     }
-    this.processEvent(JSON.parse(message));
+
+    this.logger.debug('Processing inventory event message:', message);
+    const event: InventoryEvent = JSON.parse(message);
+
+    const { item, eventType } = event;
+    if (eventType === InventoryEventType.ITEM_ADDED) {
+      // This calls "inventory.insert" which is the insert() function from the DbService mixin.
+      this.broker.call('inventory.insert', { entity: item });
+    } else if (eventType === InventoryEventType.ITEM_UPDATED) {
+      // This calls "inventory.update" which is the update() function from the DbService mixin.
+      this.broker.call('inventory.update', item);
+    } else if (eventType === InventoryEventType.ITEM_REMOVED) {
+      // This calls "inventory.update" which is the remove() function from the DbService mixin.
+      this.broker.call('inventory.remove', item);
+    } else {
+      // Not an error as services may publish different event types in the future.
+      this.logger.warn('Unknown eventType:', eventType);
+    }
+  };
+
+  /**
+   * Function to consume order events from a Kafka topic and process them.
+   */
+  handleOrderEvent = (error: any, message: string): void => {
+    if (error) {
+      throw new MoleculerError(`${error.message} ${error.detail}`, 500, 'CONSUMER_MESSAGE_ERROR');
+    }
+
+    this.logger.debug('Processing order event message:', message);
+    const event: OrderEvent = JSON.parse(message);
+
+    const { order } = event;
+    if (order.state === OrderState.CANCELLED) {
+      // free items associated with the cancelled order
+      this.freeItems(order.items);
+    }
   };
 
   serviceStarted(): Promise<void> {
     this.startKafkaProducer(this.settings.bootstrapServer, (error: any) => this.logger.error(error));
 
-    this.startKafkaConsumer({
-      bootstrapServer: this.settings.bootstrapServer,
-      topic: this.settings.inventoryTopic,
-      callback: this.handleMessage,
-    });
+    // Start multiple consumers, one for inventory events and one for order events.
+    this.startKafkaConsumers([
+      {
+        bootstrapServer: this.settings.bootstrapServer,
+        topic: this.settings.inventoryTopic,
+        callback: this.handleInventoryEvent,
+      },
+      {
+        bootstrapServer: this.settings.bootstrapServer,
+        topic: this.settings.ordersTopic,
+        callback: this.handleOrderEvent,
+      },
+    ]);
 
     this.logger.debug('Inventory service started.');
 

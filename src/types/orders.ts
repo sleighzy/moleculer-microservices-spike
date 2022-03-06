@@ -3,6 +3,7 @@ import { UUID } from './types';
 export enum OrderEventType {
   ORDER_CREATED = 'OrderCreated',
   ORDER_UPDATED = 'OrderUpdated',
+  ORDER_CANCELLED = 'OrderCancelled',
 }
 
 export enum OrderState {
