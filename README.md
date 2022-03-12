@@ -70,11 +70,11 @@ docker-compose --profile infrastructure up -d
 ## Run Docker Deployment of Services
 
 The environment variables used when deploying the Docker container are
-configured in the `docker-compose.env` file. The `moleculer.config.js` file
+configured in the `docker-compose.env` file. The `moleculer.config.ts` file
 contains the default configuration for the Moleculer service brokers. This
 configuration however is overridden by the environment variables when running
 the Docker deployment. For example, the default `transporter: 'TCP'` setting in
-`moleculer.config.js` will be overridden by the `TRANSPORTER` environment
+`moleculer.config.ts` will be overridden by the `TRANSPORTER` environment
 variable value.
 
 Copy the `docker-compose.example.env` to `docker-compose.env` and update it with
