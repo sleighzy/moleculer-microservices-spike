@@ -36,7 +36,7 @@ const brokerConfig: BrokerOptions = {
   namespace: 'development',
   // Unique node identifier. Must be unique in a namespace.
   // It will be unique when scaling up instances in Docker or on local computer
-  nodeID: (process.env.NODEID ? `${process.env.NODEID}-` : '') + os.hostname().toLowerCase(),
+  nodeID: (process.env.NODE_ID ? `${process.env.NODE_ID}-` : '') + os.hostname().toLowerCase(),
 
   // Custom metadata store. Store here what you want. Accessing: `this.broker.metadata`
   metadata: {},

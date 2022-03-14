@@ -29,7 +29,7 @@ services:
     depends_on:
       - redis
     environment:
-      NODEID: 'node-api'
+      NODE_ID: 'node-api'
       SERVICES: api
       PORT: 4000
     labels:
@@ -43,7 +43,7 @@ services:
     depends_on:
       - redis
     environment:
-      NODEID: 'node-auth'
+      NODE_ID: 'node-auth'
       SERVICES: auth
 
   metrics:
@@ -51,7 +51,7 @@ services:
     depends_on:
       - redis
     environment:
-      NODEID: 'node-metrics'
+      NODE_ID: 'node-metrics'
       SERVICES: metrics
 
   users:
@@ -60,7 +60,7 @@ services:
       - redis
       - mongodb
     environment:
-      NODEID: 'node-users'
+      NODE_ID: 'node-users'
       SERVICES: users
 
   inventory:
@@ -70,7 +70,7 @@ services:
       - kafka
       - mongodb
     environment:
-      NODEID: 'node-inventory'
+      NODE_ID: 'node-inventory'
       SERVICES: inventory
 
   orders:
@@ -80,7 +80,7 @@ services:
       - kafka
       - mongodb
     environment:
-      NODEID: 'node-orders'
+      NODE_ID: 'node-orders'
       SERVICES: orders
 
   greeter:
@@ -88,7 +88,7 @@ services:
     depends_on:
       - redis
     environment:
-      NODEID: 'node-greeter'
+      NODE_ID: 'node-greeter'
       SERVICES: greeter
 
   slack:
@@ -97,7 +97,7 @@ services:
       - redis
       - kafka
     environment:
-      NODEID: 'node-slack'
+      NODE_ID: 'node-slack'
       SERVICES: slack
 
   emailer:
@@ -105,7 +105,7 @@ services:
     depends_on:
       - redis
     environment:
-      NODEID: 'node-emailer'
+      NODE_ID: 'node-emailer'
       SERVICES: emailer
 
   redis:
