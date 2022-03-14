@@ -27,6 +27,5 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/src/public ./public
 COPY --from=build /app/dist .
 
-COPY moleculer.config.js .
 
 CMD ["node_modules/moleculer/bin/moleculer-runner.js"]

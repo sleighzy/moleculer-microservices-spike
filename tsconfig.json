@@ -2,9 +2,10 @@
   "extends": "@tsconfig/node12/tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "./src",
     "strict": false
   },
-  "include": ["./src/**/*", "moleculer.config.ts"],
+  "include": ["./src/**/*"],
   "exclude": ["node_modules"]
 }
   
