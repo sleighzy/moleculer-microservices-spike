@@ -4,8 +4,8 @@
   "description": "My Moleculer microservices project",
   "scripts": {
     "build": "tsc",
-    "dev": "moleculer-runner --repl --hot dist/services",
-    "start": "moleculer-runner",
+    "dev": "moleculer-runner --config ./dist/moleculer.config.js --repl --hot dist/services",
+    "start": "moleculer-runner --config ./dist/moleculer.config.js",
     "ci": "jest --watch",
     "test": "snyk test && jest --coverage",
     "lint": "eslint --ext ts . --format stylish",
@@ -13,14 +13,14 @@
     "docker:run": "docker-compose up -d",
     "snyk-protect": "snyk protect",
     "prepare": "npm run snyk-protect",
-    "service:api": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/api.service.js",
-    "service:auth": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/auth.service.js",
-    "service:emailer": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/emailer.service.js",
-    "service:inventory": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/inventory.service.js",
-    "service:metrics": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/metrics.service.js",
-    "service:orders": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/orders.service.js",
-    "service:slack": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/slack.service.js",
-    "service:users": "moleculer-runner -c ./moleculer.config.js -r ./dist/services/users.service.js"
+    "service:api": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/api.service.js",
+    "service:auth": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/auth.service.js",
+    "service:emailer": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/emailer.service.js",
+    "service:inventory": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/inventory.service.js",
+    "service:metrics": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/metrics.service.js",
+    "service:orders": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/orders.service.js",
+    "service:slack": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/slack.service.js",
+    "service:users": "moleculer-runner --config ./dist/moleculer.config.js --repl ./dist/services/users.service.js"
   },
   "keywords": [
     "microservices",
