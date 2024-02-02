@@ -61,7 +61,7 @@
     "moleculer-web": "^0.10.4",
     "mongodb": "^3.6.9",
     "mongoose": "^5.13.14",
-    "nodemailer": "^6.6.2",
+    "nodemailer": "^6.9.9",
     "os": "^0.1.1",
     "slack-node": "^0.2.0",
     "snappy": "^7.1.1",
