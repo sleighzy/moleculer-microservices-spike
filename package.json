@@ -55,7 +55,7 @@
     "kafka-node": "^5.0.0",
     "kafka-streams": "^5.0.0",
     "moleculer": "^0.14.19",
-    "moleculer-db": "^0.8.14",
+    "moleculer-db": "^0.8.18",
     "moleculer-db-adapter-mongoose": "^0.8.12",
     "moleculer-jaeger": "^0.2.3",
     "moleculer-web": "^0.10.4",
